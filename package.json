@@ -1,0 +1,22 @@
+{
+  "name": "wp-rest-auth-oauth2",
+  "version": "1.0.0",
+  "description": "Enterprise-grade OAuth2 authentication with API Proxy security for WordPress REST API",
+  "private": true,
+  "scripts": {
+    "env:start": "wp-env start",
+    "env:stop": "wp-env stop",
+    "env:restart": "wp-env stop && wp-env start",
+    "env:clean": "wp-env clean",
+    "env:destroy": "wp-env destroy",
+    "test": "wp-env run tests-cli phpunit",
+    "test:watch": "wp-env run tests-cli phpunit --watch"
+  },
+  "devDependencies": {
+    "@wordpress/env": "^8.7.0"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  }
+}

@@ -1,0 +1,30 @@
+# Dependencies
+/node_modules/
+/vendor/
+
+# wp-env
+/.wp-env/
+
+# Test coverage
+/tests/coverage/
+
+# Composer
+composer.lock
+
+# npm
+package-lock.json
+yarn.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+debug.log
