@@ -15,8 +15,5 @@
     "WP_OAUTH2_SECRET": "test-oauth2-secret-key-for-development-only-change-in-production"
   },
   "port": 8890,
-  "testsPort": 8891,
-  "lifecycleScripts": {
-    "afterStart": "wp-env run tests-wordpress composer install"
-  }
+  "testsPort": 8891
 }
