@@ -343,3 +343,68 @@ function wp_auth_oauth2_create_error_response(string $error, ?string $descriptio
 
     return $response;
 }
+
+/**
+ * Validate PKCE code challenge method
+ */
+function wp_auth_oauth2_validate_code_challenge_method(string $method): bool {
+    return in_array($method, ['S256', 'plain'], true);
+}
+
+/**
+ * Generate PKCE code challenge from verifier
+ *
+ * @param string $code_verifier The code verifier (43-128 characters)
+ * @param string $method The challenge method ('S256' or 'plain')
+ * @return string|false The code challenge, or false on error
+ */
+function wp_auth_oauth2_generate_code_challenge(string $code_verifier, string $method = 'S256') {
+    if (!wp_auth_oauth2_validate_code_verifier($code_verifier)) {
+        return false;
+    }
+
+    if ($method === 'S256') {
+        $hash = hash('sha256', $code_verifier, true);
+        return rtrim(strtr(base64_encode($hash), '+/', '-_'), '=');
+    } elseif ($method === 'plain') {
+        return $code_verifier;
+    }
+
+    return false;
+}
+
+/**
+ * Validate PKCE code verifier format
+ * Must be 43-128 characters of [A-Z] / [a-z] / [0-9] / "-" / "." / "_" / "~"
+ */
+function wp_auth_oauth2_validate_code_verifier(string $code_verifier): bool {
+    $length = strlen($code_verifier);
+    if ($length < 43 || $length > 128) {
+        return false;
+    }
+
+    return preg_match('/^[A-Za-z0-9\-._~]+$/', $code_verifier) === 1;
+}
+
+/**
+ * Verify PKCE code challenge matches verifier
+ *
+ * @param string $code_verifier The code verifier provided by client
+ * @param string $code_challenge The stored code challenge
+ * @param string $method The challenge method used ('S256' or 'plain')
+ * @return bool True if verification succeeds
+ */
+function wp_auth_oauth2_verify_code_challenge(string $code_verifier, string $code_challenge, string $method = 'S256'): bool {
+    if (!wp_auth_oauth2_validate_code_verifier($code_verifier)) {
+        return false;
+    }
+
+    $computed_challenge = wp_auth_oauth2_generate_code_challenge($code_verifier, $method);
+
+    if ($computed_challenge === false) {
+        return false;
+    }
+
+    // Timing-safe comparison to prevent timing attacks
+    return hash_equals($code_challenge, $computed_challenge);
+}

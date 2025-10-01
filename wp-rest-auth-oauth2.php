@@ -1,18 +1,24 @@
 <?php
 /**
- * Plugin Name: WP REST Auth OAuth2
- * Description: OAuth2 authentication for WordPress REST API
+ * Plugin Name: OAuth2 Auth Pro WP REST API
+ * Plugin URI: https://github.com/juanma-wp/wp-rest-auth-oauth2
+ * Description: Secure OAuth2 authentication for headless WordPress, SPAs, and mobile apps. No bloat, no upselling.
  * Version: 1.0.0
- * Author: WordPress Developer
+ * Author: Juan Manuel Garrido
+ * Author URI: https://github.com/juanma-wp
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPL v2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain: oauth2-auth-pro-wp-rest-api
  *
- * OAuth2 implementation with:
- * - Complete OAuth2 Authorization Code flow
- * - Token management with refresh tokens
- * - Multi-client support
- * - Login page with user authorization
+ * OAuth2 server implementation for WordPress REST API with:
+ * - Complete OAuth2 Authorization Code flow with PKCE support (RFC 7636)
+ * - Scope-based permissions with automatic endpoint enforcement
+ * - Refresh token rotation for enhanced security
+ * - Multi-client support with admin interface
+ * - Built-in user consent screen
+ * - Perfect for mobile apps, SPAs, and headless WordPress
  */
 
 if (!defined('ABSPATH')) {

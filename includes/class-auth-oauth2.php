@@ -57,6 +57,18 @@ class Auth_OAuth2 {
                 'state' => [
                     'required' => false,
                     'type' => 'string'
+                ],
+                'code_challenge' => [
+                    'required' => false,
+                    'type' => 'string',
+                    'description' => 'PKCE code challenge'
+                ],
+                'code_challenge_method' => [
+                    'required' => false,
+                    'type' => 'string',
+                    'enum' => ['S256', 'plain'],
+                    'default' => 'S256',
+                    'description' => 'PKCE code challenge method'
                 ]
             ]
         ]);
@@ -84,8 +96,14 @@ class Auth_OAuth2 {
                     'type' => 'string'
                 ],
                 'client_secret' => [
-                    'required' => true,
-                    'type' => 'string'
+                    'required' => false,
+                    'type' => 'string',
+                    'description' => 'Required unless using PKCE'
+                ],
+                'code_verifier' => [
+                    'required' => false,
+                    'type' => 'string',
+                    'description' => 'PKCE code verifier (required if code_challenge was used)'
                 ]
             ]
         ]);
@@ -125,11 +143,21 @@ class Auth_OAuth2 {
         $redirect_uri = $_GET['redirect_uri'] ?? '';
         $state = $_GET['state'] ?? '';
         $requested_scope = $_GET['scope'] ?? 'read';
+        $code_challenge = $_GET['code_challenge'] ?? '';
+        $code_challenge_method = $_GET['code_challenge_method'] ?? 'S256';
 
         // Validate parameters
         if ($response_type !== 'code') {
             $this->redirect_with_error($redirect_uri, 'unsupported_response_type', $state);
             return;
+        }
+
+        // Validate PKCE parameters if provided
+        if (!empty($code_challenge)) {
+            if (!wp_auth_oauth2_validate_code_challenge_method($code_challenge_method)) {
+                $this->redirect_with_error($redirect_uri, 'invalid_request', $state);
+                return;
+            }
         }
 
         if (empty($client_id) || empty($redirect_uri)) {
@@ -179,12 +207,12 @@ class Auth_OAuth2 {
 
         // Check if user has already consented or if consent is being processed
         if (isset($_POST['oauth2_consent'])) {
-            $this->handle_consent_response($client_id, $redirect_uri, $state, $valid_scopes, $user->ID);
+            $this->handle_consent_response($client_id, $redirect_uri, $state, $valid_scopes, $user->ID, $code_challenge, $code_challenge_method);
             return;
         }
 
-        // Show consent screen
-        $this->show_consent_screen($client_id, $redirect_uri, $state, $valid_scopes);
+        // Show consent screen (pass PKCE params to preserve them in the form)
+        $this->show_consent_screen($client_id, $redirect_uri, $state, $valid_scopes, $code_challenge, $code_challenge_method);
     }
 
     private function parse_scopes(string $scope_string): array {
@@ -232,14 +260,14 @@ class Auth_OAuth2 {
         }
     }
 
-    private function show_consent_screen(string $client_id, string $redirect_uri, string $state, array $scopes): void {
+    private function show_consent_screen(string $client_id, string $redirect_uri, string $state, array $scopes, string $code_challenge = '', string $code_challenge_method = 'S256'): void {
         $user = wp_get_current_user();
         $app_name = $this->get_app_name($client_id);
 
         // Set content type and start output
         header('Content-Type: text/html; charset=utf-8');
 
-        echo $this->render_consent_page($app_name, $user, $scopes, $client_id, $redirect_uri, $state);
+        echo $this->render_consent_page($app_name, $user, $scopes, $client_id, $redirect_uri, $state, $code_challenge, $code_challenge_method);
         exit;
     }
 
@@ -252,7 +280,7 @@ class Auth_OAuth2 {
         return $app_names[$client_id] ?? 'Third-Party Application';
     }
 
-    private function render_consent_page(string $app_name, WP_User $user, array $scopes, string $client_id, string $redirect_uri, string $state): string {
+    private function render_consent_page(string $app_name, WP_User $user, array $scopes, string $client_id, string $redirect_uri, string $state, string $code_challenge = '', string $code_challenge_method = 'S256'): string {
         $site_name = get_bloginfo('name');
         $user_name = $user->display_name ?: $user->user_login;
 
@@ -566,6 +594,10 @@ class Auth_OAuth2 {
                     <input type="hidden" name="redirect_uri" value="<?php echo esc_attr($redirect_uri); ?>">
                     <input type="hidden" name="state" value="<?php echo esc_attr($state); ?>">
                     <input type="hidden" name="scope" value="<?php echo esc_attr(implode(' ', $scopes)); ?>">
+                    <?php if (!empty($code_challenge)): ?>
+                        <input type="hidden" name="code_challenge" value="<?php echo esc_attr($code_challenge); ?>">
+                        <input type="hidden" name="code_challenge_method" value="<?php echo esc_attr($code_challenge_method); ?>">
+                    <?php endif; ?>
 
                     <div class="oauth-actions">
                         <button type="submit" name="oauth2_consent" value="deny" class="btn btn-cancel">
@@ -598,8 +630,14 @@ class Auth_OAuth2 {
         return $icons[$scope] ?? '🔧';
     }
 
-    private function handle_consent_response(string $client_id, string $redirect_uri, string $state, array $scopes, int $user_id): void {
+    private function handle_consent_response(string $client_id, string $redirect_uri, string $state, array $scopes, int $user_id, string $code_challenge = '', string $code_challenge_method = 'S256'): void {
         $consent = $_POST['oauth2_consent'] ?? '';
+
+        // Retrieve PKCE params from POST if not passed (from form submission)
+        if (empty($code_challenge) && !empty($_POST['code_challenge'])) {
+            $code_challenge = $_POST['code_challenge'];
+            $code_challenge_method = $_POST['code_challenge_method'] ?? 'S256';
+        }
 
         error_log('OAuth2 Debug: Handling consent response - ' . json_encode([
             'consent' => $consent,
@@ -607,7 +645,8 @@ class Auth_OAuth2 {
             'redirect_uri' => $redirect_uri,
             'state' => $state,
             'scopes' => $scopes,
-            'user_id' => $user_id
+            'user_id' => $user_id,
+            'has_pkce' => !empty($code_challenge)
         ]));
 
         if ($consent !== 'approve') {
@@ -619,14 +658,22 @@ class Auth_OAuth2 {
         // Generate authorization code
         $code = wp_auth_oauth2_generate_token(32);
 
-        // Store authorization code with approved scopes
-        set_transient($this->code_key($code), [
+        // Store authorization code with approved scopes and PKCE params
+        $code_data = [
             'client_id' => $client_id,
             'user_id' => $user_id,
             'redirect_uri' => $redirect_uri,
             'scopes' => $scopes,
             'created' => time()
-        ], self::CODE_TTL);
+        ];
+
+        // Add PKCE parameters if present
+        if (!empty($code_challenge)) {
+            $code_data['code_challenge'] = $code_challenge;
+            $code_data['code_challenge_method'] = $code_challenge_method;
+        }
+
+        set_transient($this->code_key($code), $code_data, self::CODE_TTL);
 
         // Redirect back to application with authorization code
         $location = add_query_arg(array_filter([
@@ -726,6 +773,7 @@ class Auth_OAuth2 {
         $redirect_uri = $request->get_param('redirect_uri');
         $client_id = $request->get_param('client_id');
         $client_secret = $request->get_param('client_secret');
+        $code_verifier = $request->get_param('code_verifier');
 
         if ($grant_type !== 'authorization_code') {
             return wp_auth_oauth2_error_response(
@@ -744,14 +792,6 @@ class Auth_OAuth2 {
             );
         }
 
-        if (!wp_check_password($client_secret, $client['client_secret'])) {
-            return wp_auth_oauth2_error_response(
-                'invalid_client',
-                'Invalid client credentials',
-                401
-            );
-        }
-
         $code_data = get_transient($this->code_key($code));
         if (!$code_data) {
             return wp_auth_oauth2_error_response(
@@ -759,6 +799,50 @@ class Auth_OAuth2 {
                 'Invalid or expired authorization code',
                 400
             );
+        }
+
+        // Check if PKCE was used in the authorization request
+        $pkce_required = !empty($code_data['code_challenge']);
+
+        if ($pkce_required) {
+            // PKCE flow: validate code_verifier
+            if (empty($code_verifier)) {
+                return wp_auth_oauth2_error_response(
+                    'invalid_request',
+                    'code_verifier is required when PKCE is used',
+                    400
+                );
+            }
+
+            $code_challenge = $code_data['code_challenge'];
+            $code_challenge_method = $code_data['code_challenge_method'] ?? 'S256';
+
+            if (!wp_auth_oauth2_verify_code_challenge($code_verifier, $code_challenge, $code_challenge_method)) {
+                return wp_auth_oauth2_error_response(
+                    'invalid_grant',
+                    'Invalid code_verifier',
+                    400
+                );
+            }
+
+            // PKCE validated successfully - client_secret not required
+        } else {
+            // Traditional flow: require client_secret
+            if (empty($client_secret)) {
+                return wp_auth_oauth2_error_response(
+                    'invalid_request',
+                    'client_secret is required when PKCE is not used',
+                    400
+                );
+            }
+
+            if (!wp_check_password($client_secret, $client['client_secret'])) {
+                return wp_auth_oauth2_error_response(
+                    'invalid_client',
+                    'Invalid client credentials',
+                    401
+                );
+            }
         }
 
         if ($code_data['client_id'] !== $client_id) {
