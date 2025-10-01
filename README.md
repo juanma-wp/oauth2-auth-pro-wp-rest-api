@@ -1,32 +1,30 @@
 # WP REST Auth OAuth2
 
-🚀 **Enterprise-grade OAuth2 authentication with API Proxy security for WordPress REST API**
+OAuth2 authentication for WordPress REST API with complete Authorization Code flow, token management, and multi-client support.
 
-Complete OAuth2 Authorization Code flow implementation with advanced security features including API Proxy pattern, scoped permissions, and multi-client management. Perfect for third-party integrations and enterprise applications.
+## Features
 
-## ✨ Features
-
-### 🔐 OAuth2 Implementation
-- **Complete OAuth2 Flow** - Full Authorization Code flow with PKCE
+### OAuth2 Implementation
+- **Complete OAuth2 Flow** - Full Authorization Code flow
 - **Multi-Client Support** - Manage multiple OAuth2 applications
-- **Scoped Permissions** - Granular access control with predefined scopes
+- **Token Management** - Access tokens and refresh tokens
 - **Refresh Token Rotation** - Enhanced security with automatic rotation
 - **Client Management** - Full CRUD operations for OAuth2 clients
+- **Login Page** - Built-in authorization page for user consent
+- **Redirect to Source App** - Seamless callback handling
 
-### 🛡️ Security Features
-- **API Proxy Pattern** - Backend-only token storage (recommended by OAuth2 Security BCP)
-- **HTTPOnly Session Cookies** - Secure session management
+### Security Features
 - **CORS Management** - Configurable cross-origin policies
 - **IP & User Agent Tracking** - Comprehensive security logging
 - **Token Revocation** - Immediate token invalidation
+- **Secure Token Storage** - Database-backed token management
 
-### ⚙️ Management
-- **Enterprise Admin Interface** - Comprehensive client and settings management
-- **Three Proxy Modes** - Full, Selective, and External-only proxying
+### Management
+- **Admin Interface** - Comprehensive client and settings management
 - **Real-time Testing** - Built-in OAuth2 flow testing
 - **Debugging Tools** - Detailed logging and diagnostics
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Install & Activate
 1. Upload the plugin to `/wp-content/plugins/`
@@ -41,15 +39,7 @@ Complete OAuth2 Authorization Code flow implementation with advanced security fe
    - **Client Name**: Human-readable name
    - **Redirect URIs**: Authorized callback URLs
 
-### 3. Configure API Proxy (Recommended)
-1. Go to "Proxy Settings" tab
-2. Enable API Proxy
-3. Choose proxy mode:
-   - **Full**: All API calls proxied (maximum security)
-   - **Selective**: Only authenticated endpoints
-   - **External-only**: Only third-party requests
-
-### 4. Start Integration
+### 3. Start Integration
 ```javascript
 // Step 1: Redirect to authorization endpoint
 const authUrl = `https://your-site.com/wp-json/oauth2/v1/authorize?` +
@@ -82,22 +72,15 @@ const tokens = await tokenResponse.json();
 // Store tokens securely...
 ```
 
-## 📍 OAuth2 Endpoints
+## OAuth2 Endpoints
 
 ### Authorization Flow
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/wp-json/oauth2/v1/authorize` | Authorization endpoint |
+| `GET` | `/wp-json/oauth2/v1/authorize` | Authorization endpoint (login page) |
 | `POST` | `/wp-json/oauth2/v1/token` | Token exchange endpoint |
 | `POST` | `/wp-json/oauth2/v1/refresh` | Refresh token endpoint |
 | `POST` | `/wp-json/oauth2/v1/revoke` | Token revocation endpoint |
-
-### API Proxy Endpoints (When Enabled)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/wp-json/proxy/v1/login` | Initiate proxy session |
-| `POST` | `/wp-json/proxy/v1/logout` | End proxy session |
-| `*` | `/wp-json/proxy/v1/api/*` | Proxied API calls |
 
 ### Utility Endpoints
 | Method | Endpoint | Description |
@@ -105,7 +88,7 @@ const tokens = await tokenResponse.json();
 | `GET` | `/wp-json/oauth2/v1/userinfo` | Get current user info |
 | `GET` | `/wp-json/oauth2/v1/scopes` | List available scopes |
 
-## 🔒 Available Scopes
+## Available Scopes
 
 | Scope | Description | Required Capability |
 |-------|-------------|-------------------|
@@ -119,37 +102,8 @@ const tokens = await tokenResponse.json();
 | `edit_theme` | Modify theme settings | `edit_theme_options` |
 | `manage_plugins` | Manage plugins | `activate_plugins` |
 | `manage_options` | Site settings access | `manage_options` |
-| `view_stats` | Access analytics | `view_query_monitor` |
 
-## 🛡️ API Proxy Security
-
-The API Proxy pattern provides maximum security by keeping OAuth2 tokens on the backend only, following [OAuth2 Security Best Current Practice for Browser-Based Apps](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics).
-
-### Benefits
-- ✅ **No tokens in JavaScript** - Immune to XSS attacks
-- ✅ **HTTPOnly session cookies** - Secure session management
-- ✅ **Backend token validation** - All tokens validated server-side
-- ✅ **Automatic token refresh** - Transparent to client applications
-- ✅ **CORS protection** - Configurable origin restrictions
-
-### Proxy Flow
-```javascript
-// 1. Start proxy session (redirects to OAuth2 flow)
-window.location.href = '/wp-json/proxy/v1/login?client_id=your-app';
-
-// 2. After OAuth2 completion, make proxied API calls
-const response = await fetch('/wp-json/proxy/v1/api/wp/v2/posts', {
-    credentials: 'include' // Includes session cookie
-});
-
-// 3. End session when done
-await fetch('/wp-json/proxy/v1/logout', {
-    method: 'POST',
-    credentials: 'include'
-});
-```
-
-## 🔄 Complete OAuth2 Flow
+## Complete OAuth2 Flow
 
 ```mermaid
 graph TD
@@ -164,7 +118,7 @@ graph TD
     I --> J[New Access Token]
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables (Production)
 ```php
@@ -185,25 +139,13 @@ Navigate to **Settings → WP REST Auth OAuth2**:
 - Redirect URI configuration
 - Client-specific settings
 
-#### API Proxy Settings
-- Enable/disable proxy
-- Proxy mode selection
-- Session configuration
-
-## 🧪 Testing Your Integration
+## Testing Your Integration
 
 ### Built-in Test Client
 The plugin includes a demo client for testing:
 - **Client ID**: `demo-client`
 - **Client Secret**: `demo-secret`
 - **Redirect URIs**: Preconfigured for common development URLs
-
-### Manual Testing
-1. Use the authorization URL to start the flow
-2. Complete user consent
-3. Exchange authorization code for tokens
-4. Make authenticated API calls
-5. Test refresh token functionality
 
 ### cURL Examples
 ```bash
@@ -234,56 +176,14 @@ curl -X POST "https://your-site.com/wp-json/oauth2/v1/refresh" \
   }'
 ```
 
-## 💡 Use Cases
+## Use Cases
 
-### Enterprise Applications
 - **Third-party Integrations** - Secure API access for external services
 - **Mobile Applications** - Native app authentication
-- **SaaS Platforms** - Multi-tenant authentication
+- **SPA Applications** - Single-page app authentication
 - **Microservices** - Service-to-service authentication
 
-### Security-Critical Environments
-- **Financial Applications** - Banking and fintech integrations
-- **Healthcare Systems** - HIPAA-compliant API access
-- **Government Platforms** - High-security requirements
-- **E-commerce** - Payment and order processing
-
-## 🔧 Advanced Configuration
-
-### Custom Scopes
-```php
-// Add custom scopes
-add_filter('wp_auth_oauth2_available_scopes', function($scopes) {
-    $scopes['custom_scope'] = 'Access to custom functionality';
-    return $scopes;
-});
-
-// Define scope capabilities
-add_filter('wp_auth_oauth2_scope_capabilities', function($capabilities) {
-    $capabilities['custom_scope'] = 'custom_capability';
-    return $capabilities;
-});
-```
-
-### Client Validation
-```php
-// Custom client validation
-add_filter('wp_auth_oauth2_validate_client', function($is_valid, $client_id, $client) {
-    // Custom validation logic
-    return $is_valid && custom_validation($client);
-}, 10, 3);
-```
-
-### Proxy Customization
-```php
-// Custom proxy rules
-add_filter('wp_auth_oauth2_proxy_routes', function($routes) {
-    $routes[] = '/custom-api/*';
-    return $routes;
-});
-```
-
-## 🔍 Monitoring & Debugging
+## Monitoring & Debugging
 
 ### Debug Logging
 Enable debug logging to monitor OAuth2 flows:
@@ -301,38 +201,14 @@ Enable debug logging to monitor OAuth2 flows:
 - Monitor refresh token usage
 - Log client authentication failures
 
-## 🆚 vs Simple JWT
-
-| Feature | OAuth2 Plugin | JWT Plugin |
-|---------|---------------|------------|
-| **Complexity** | Enterprise-grade | Simple & focused |
-| **Use Case** | Third-party apps | Direct API access |
-| **Authorization** | Full OAuth2 flow | Direct login |
-| **Client Management** | Multi-client support | Single application |
-| **Scoped Permissions** | ✅ Granular scopes | ❌ User capabilities |
-| **API Proxy** | ✅ Optional proxy | ❌ Direct API |
-| **Admin Interface** | Comprehensive | Simple settings |
-
-**Choose OAuth2 when:**
-- Building third-party integrations
-- Need granular permissions
-- Require enterprise security
-- Managing multiple applications
-
-**Choose JWT when:**
-- Building single application
-- Need simple authentication
-- Direct API access is sufficient
-- Minimal configuration required
-
-## 📝 Requirements
+## Requirements
 
 - WordPress 5.6+
 - PHP 7.4+
 - HTTPS (required for production OAuth2)
 - Modern browser support for admin interface
 
-## 🧪 Testing
+## Testing
 
 Run comprehensive tests:
 
@@ -345,18 +221,15 @@ composer test-integration
 
 # OAuth2 flow tests
 composer test-oauth2
-
-# API Proxy tests
-composer test-proxy
 ```
 
-## 📄 License
+## License
 
 GPL v2 or later
 
-## 🤝 Contributing
+## Contributing
 
-Enterprise-grade contributions welcome! Please:
+Contributions welcome! Please:
 1. Follow WordPress coding standards
 2. Include comprehensive tests
 3. Update documentation
@@ -364,4 +237,4 @@ Enterprise-grade contributions welcome! Please:
 
 ---
 
-**Enterprise. Secure. OAuth2.** 🚀🔒
+**Secure. Simple. OAuth2.** 🔒

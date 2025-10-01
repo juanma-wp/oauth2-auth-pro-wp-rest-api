@@ -1,7 +1,7 @@
 <?php
 /**
  * Helper functions for WP REST Auth OAuth2
- * Advanced utilities for OAuth2 authentication and API Proxy
+ * Utilities for OAuth2 authentication
  */
 
 if (!defined('ABSPATH')) {
@@ -62,7 +62,7 @@ function wp_auth_oauth2_set_cookie(
     int $expires,
     string $path = '/',
     bool $httponly = true,
-    bool $secure = null
+    ?bool $secure = null
 ): bool {
     $secure = $secure ?? is_ssl();
     $samesite = apply_filters('wp_auth_oauth2_cookie_samesite', 'Strict');

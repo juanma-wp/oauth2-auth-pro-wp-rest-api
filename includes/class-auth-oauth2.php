@@ -1227,7 +1227,7 @@ class Auth_OAuth2 {
     private function store_oauth2_refresh_token(int $user_id, string $refresh_token, int $expires_at, string $client_id, array $scopes): bool {
         global $wpdb;
 
-        $table_name = $wpdb->prefix . 'jwt_refresh_tokens'; // Reuse JWT table with oauth2 context
+        $table_name = $wpdb->prefix . 'oauth2_refresh_tokens';
         $token_hash = wp_auth_oauth2_hash_token($refresh_token, WP_OAUTH2_SECRET);
 
         $result = $wpdb->insert(
@@ -1256,7 +1256,7 @@ class Auth_OAuth2 {
     private function validate_oauth2_refresh_token(string $refresh_token) {
         global $wpdb;
 
-        $table_name = $wpdb->prefix . 'jwt_refresh_tokens';
+        $table_name = $wpdb->prefix . 'oauth2_refresh_tokens';
         $token_hash = wp_auth_oauth2_hash_token($refresh_token, WP_OAUTH2_SECRET);
         $now = time();
 
@@ -1283,7 +1283,7 @@ class Auth_OAuth2 {
     private function update_oauth2_refresh_token(int $token_id, string $new_refresh_token, int $expires_at): bool {
         global $wpdb;
 
-        $table_name = $wpdb->prefix . 'jwt_refresh_tokens';
+        $table_name = $wpdb->prefix . 'oauth2_refresh_tokens';
         $token_hash = wp_auth_oauth2_hash_token($new_refresh_token, WP_OAUTH2_SECRET);
 
         $result = $wpdb->update(
@@ -1307,7 +1307,7 @@ class Auth_OAuth2 {
     private function revoke_oauth2_refresh_token(string $refresh_token): bool {
         global $wpdb;
 
-        $table_name = $wpdb->prefix . 'jwt_refresh_tokens';
+        $table_name = $wpdb->prefix . 'oauth2_refresh_tokens';
         $token_hash = wp_auth_oauth2_hash_token($refresh_token, WP_OAUTH2_SECRET);
 
         $result = $wpdb->update(

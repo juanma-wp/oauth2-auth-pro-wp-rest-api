@@ -1,19 +1,18 @@
 <?php
 /**
  * Plugin Name: WP REST Auth OAuth2
- * Description: Enterprise-grade OAuth2 authentication with scoped permissions and API Proxy security for WordPress REST API
+ * Description: OAuth2 authentication for WordPress REST API
  * Version: 1.0.0
  * Author: WordPress Developer
  * Requires at least: 5.6
  * Requires PHP: 7.4
  * License: GPL v2 or later
  *
- * Full-featured OAuth2 implementation with advanced security features:
+ * OAuth2 implementation with:
  * - Complete OAuth2 Authorization Code flow
- * - Scoped permissions system
- * - API Proxy for maximum security
+ * - Token management with refresh tokens
  * - Multi-client support
- * - Enterprise-ready features
+ * - Login page with user authorization
  */
 
 if (!defined('ABSPATH')) {
@@ -27,7 +26,6 @@ define('WP_REST_AUTH_OAUTH2_VERSION', '1.0.0');
 class WP_REST_Auth_OAuth2 {
 
     private $auth_oauth2;
-    private $api_proxy;
     private $admin_settings;
 
     public function __construct() {
@@ -46,7 +44,6 @@ class WP_REST_Auth_OAuth2 {
         require_once WP_REST_AUTH_OAUTH2_PLUGIN_DIR . 'includes/helpers.php';
         require_once WP_REST_AUTH_OAUTH2_PLUGIN_DIR . 'includes/class-admin-settings.php';
         require_once WP_REST_AUTH_OAUTH2_PLUGIN_DIR . 'includes/class-auth-oauth2.php';
-        require_once WP_REST_AUTH_OAUTH2_PLUGIN_DIR . 'includes/class-api-proxy.php';
 
         // Initialize admin settings
         if (is_admin()) {
@@ -54,7 +51,6 @@ class WP_REST_Auth_OAuth2 {
         }
 
         $this->auth_oauth2 = new Auth_OAuth2();
-        $this->api_proxy = new WP_REST_API_Proxy();
     }
 
     private function setup_constants() {
@@ -77,7 +73,6 @@ class WP_REST_Auth_OAuth2 {
 
     public function register_rest_routes() {
         $this->auth_oauth2->register_routes();
-        // API Proxy routes are registered automatically if enabled
     }
 
     public function maybe_auth_bearer($result) {
@@ -163,7 +158,8 @@ class WP_REST_Auth_OAuth2 {
     }
 
     private function create_demo_client() {
-        $settings = WP_REST_Auth_OAuth2_Admin_Settings::get_oauth2_settings();
+        // Get settings directly without using the admin class (which may not be loaded during activation)
+        $settings = get_option('wp_rest_auth_oauth2_settings', []);
         $clients = $settings['clients'] ?? [];
 
         // Always update the demo client to ensure correct redirect URIs
