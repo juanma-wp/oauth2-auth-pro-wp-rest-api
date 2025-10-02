@@ -53,6 +53,7 @@ class WP_REST_Auth_OAuth2 {
 
     private function load_dependencies() {
         require_once WP_REST_AUTH_OAUTH2_PLUGIN_DIR . 'includes/helpers.php';
+        require_once WP_REST_AUTH_OAUTH2_PLUGIN_DIR . 'includes/class-oauth2-cookie-config.php';
         require_once WP_REST_AUTH_OAUTH2_PLUGIN_DIR . 'includes/class-admin-settings.php';
         require_once WP_REST_AUTH_OAUTH2_PLUGIN_DIR . 'includes/class-auth-oauth2.php';
 
@@ -87,37 +88,57 @@ class WP_REST_Auth_OAuth2 {
     }
 
     public function maybe_auth_bearer($result) {
+        error_log('OAuth2 Debug: maybe_auth_bearer called - result: ' . json_encode($result));
+
         if (!empty($result)) {
+            error_log('OAuth2 Debug: Result already set, returning early');
             return $result;
         }
 
         $auth_header = $this->get_auth_header();
+        error_log('OAuth2 Debug: Auth header: ' . ($auth_header ?: 'NONE'));
+
         if (!$auth_header || stripos($auth_header, 'Bearer ') !== 0) {
+            error_log('OAuth2 Debug: No Bearer token found in header');
             return $result;
         }
 
         $token = trim(substr($auth_header, 7));
+        error_log('OAuth2 Debug: Extracted token: ' . substr($token, 0, 10) . '...');
 
         // Try OAuth2 authentication
         $oauth_result = $this->auth_oauth2->authenticate_bearer($token);
-        if (!is_wp_error($oauth_result)) {
+        error_log('OAuth2 Debug: OAuth2 auth result: ' . (is_wp_error($oauth_result) ? $oauth_result->get_error_message() : 'SUCCESS'));
+
+        if (is_wp_error($oauth_result)) {
             return $oauth_result;
         }
 
-        return $oauth_result;
+        // Authentication succeeded, return null to allow default handling
+        error_log('OAuth2 Debug: Returning null to allow default handling, user: ' . get_current_user_id());
+        return null;
     }
 
     private function get_auth_header() {
         $auth_header = '';
 
+        // Try various ways to get the Authorization header
         if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
             $auth_header = $_SERVER['HTTP_AUTHORIZATION'];
         } elseif (isset($_SERVER['Authorization'])) {
             $auth_header = $_SERVER['Authorization'];
+        } elseif (isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            // Handle Apache with mod_rewrite
+            $auth_header = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
         } elseif (function_exists('apache_request_headers')) {
             $headers = apache_request_headers();
-            $auth_header = $headers['Authorization'] ?? '';
+            $auth_header = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+        } elseif (function_exists('getallheaders')) {
+            $headers = getallheaders();
+            $auth_header = $headers['Authorization'] ?? $headers['authorization'] ?? '';
         }
+
+        error_log('OAuth2 Debug: Raw $_SERVER keys: ' . implode(', ', array_keys($_SERVER)));
 
         return $auth_header;
     }

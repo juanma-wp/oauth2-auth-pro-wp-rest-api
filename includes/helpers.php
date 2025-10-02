@@ -57,7 +57,17 @@ function wp_auth_oauth2_set_cookie(
     bool $httponly = true,
     ?bool $secure = null
 ): bool {
-    return Cookie::set($name, $value, $expires, $path, $httponly, $secure);
+    $options = [
+        'expires' => $expires,
+        'path' => $path,
+        'httponly' => $httponly,
+    ];
+
+    if ($secure !== null) {
+        $options['secure'] = $secure;
+    }
+
+    return Cookie::set($name, $value, $options);
 }
 
 /**
@@ -364,3 +374,43 @@ function wp_auth_oauth2_validate_code_verifier(string $code_verifier): bool {
 function wp_auth_oauth2_verify_code_challenge(string $code_verifier, string $code_challenge, string $method = 'S256'): bool {
     return Pkce::verify($code_verifier, $code_challenge, $method);
 }
+
+/**
+ * Apply OAuth2 cookie configuration settings
+ * Uses OAuth2_Cookie_Config for environment-aware cookie settings
+ */
+add_filter('wp_rest_auth_cookie_samesite', function($samesite) {
+    if (!class_exists('OAuth2_Cookie_Config')) {
+        return $samesite;
+    }
+
+    $config = OAuth2_Cookie_Config::get_config();
+    return $config['samesite'];
+}, 10, 1);
+
+add_filter('wp_rest_auth_cookie_secure', function($secure) {
+    if (!class_exists('OAuth2_Cookie_Config')) {
+        return $secure;
+    }
+
+    $config = OAuth2_Cookie_Config::get_config();
+    return $config['secure'];
+}, 10, 1);
+
+add_filter('wp_rest_auth_cookie_path', function($path) {
+    if (!class_exists('OAuth2_Cookie_Config')) {
+        return $path;
+    }
+
+    $config = OAuth2_Cookie_Config::get_config();
+    return $config['path'];
+}, 10, 1);
+
+add_filter('wp_rest_auth_cookie_domain', function($domain) {
+    if (!class_exists('OAuth2_Cookie_Config')) {
+        return $domain;
+    }
+
+    $config = OAuth2_Cookie_Config::get_config();
+    return $config['domain'];
+}, 10, 1);

@@ -44,6 +44,21 @@ class WP_REST_Auth_OAuth2_Admin_Settings {
             'sanitize_callback' => [$this, 'sanitize_general_settings']
         ]);
 
+        register_setting(
+            self::OPTION_GROUP,
+            'oauth2_auth_cookie_config',
+            [
+                'type' => 'array',
+                'sanitize_callback' => [$this, 'sanitize_cookie_settings'],
+                'default' => [
+                    'samesite' => 'auto',
+                    'secure' => 'auto',
+                    'path' => 'auto',
+                    'domain' => 'auto',
+                ],
+            ]
+        );
+
         // General Settings Section
         add_settings_section(
             'general_settings',
@@ -66,6 +81,46 @@ class WP_REST_Auth_OAuth2_Admin_Settings {
             [$this, 'cors_allowed_origins_field'],
             'wp-rest-auth-oauth2-general',
             'general_settings'
+        );
+
+        // Cookie Configuration Section (on its own tab)
+        add_settings_section(
+            'cookie_config_section',
+            'Cookie Configuration',
+            [$this, 'cookie_config_section'],
+            'wp-rest-auth-oauth2-cookies'
+        );
+
+        add_settings_field(
+            'cookie_samesite',
+            'SameSite Attribute',
+            [$this, 'cookie_samesite_field'],
+            'wp-rest-auth-oauth2-cookies',
+            'cookie_config_section'
+        );
+
+        add_settings_field(
+            'cookie_secure',
+            'Secure Attribute',
+            [$this, 'cookie_secure_field'],
+            'wp-rest-auth-oauth2-cookies',
+            'cookie_config_section'
+        );
+
+        add_settings_field(
+            'cookie_path',
+            'Cookie Path',
+            [$this, 'cookie_path_field'],
+            'wp-rest-auth-oauth2-cookies',
+            'cookie_config_section'
+        );
+
+        add_settings_field(
+            'cookie_domain',
+            'Cookie Domain',
+            [$this, 'cookie_domain_field'],
+            'wp-rest-auth-oauth2-cookies',
+            'cookie_config_section'
         );
     }
 
@@ -98,23 +153,29 @@ class WP_REST_Auth_OAuth2_Admin_Settings {
             <nav class="nav-tab-wrapper">
                 <a href="?page=wp-rest-auth-oauth2&tab=oauth2" class="nav-tab <?php echo $active_tab == 'oauth2' ? 'nav-tab-active' : ''; ?>">OAuth2 Settings</a>
                 <a href="?page=wp-rest-auth-oauth2&tab=general" class="nav-tab <?php echo $active_tab == 'general' ? 'nav-tab-active' : ''; ?>">General Settings</a>
+                <a href="?page=wp-rest-auth-oauth2&tab=cookies" class="nav-tab <?php echo $active_tab == 'cookies' ? 'nav-tab-active' : ''; ?>">Cookie Settings</a>
                 <a href="?page=wp-rest-auth-oauth2&tab=help" class="nav-tab <?php echo $active_tab == 'help' ? 'nav-tab-active' : ''; ?>">Help & Documentation</a>
             </nav>
 
-            <form method="post" action="options.php">
-                <?php
-                settings_fields(self::OPTION_GROUP);
+            <?php if ($active_tab == 'help'): ?>
+                <?php $this->render_help_tab(); ?>
+            <?php else: ?>
+                <form method="post" action="options.php">
+                    <?php
+                    settings_fields(self::OPTION_GROUP);
 
-                if ($active_tab == 'oauth2') {
-                    $this->render_oauth2_tab();
-                } elseif ($active_tab == 'general') {
-                    do_settings_sections('wp-rest-auth-oauth2-general');
-                    submit_button();
-                } elseif ($active_tab == 'help') {
-                    $this->render_help_tab();
-                }
-                ?>
-            </form>
+                    if ($active_tab == 'oauth2') {
+                        $this->render_oauth2_tab();
+                    } elseif ($active_tab == 'general') {
+                        do_settings_sections('wp-rest-auth-oauth2-general');
+                        submit_button();
+                    } elseif ($active_tab == 'cookies') {
+                        do_settings_sections('wp-rest-auth-oauth2-cookies');
+                        submit_button();
+                    }
+                    ?>
+                </form>
+            <?php endif; ?>
         </div>
         <?php
     }
@@ -439,6 +500,207 @@ class WP_REST_Auth_OAuth2_Admin_Settings {
         update_option(self::OPTION_OAUTH2_SETTINGS, $oauth2_settings);
 
         wp_send_json_success('OAuth2 client deleted successfully.');
+    }
+
+    // Cookie configuration methods
+    public function cookie_config_section() {
+        // Check if OAuth2_Cookie_Config class exists
+        if (!class_exists('OAuth2_Cookie_Config')) {
+            ?>
+            <div class="notice notice-error inline">
+                <p><?php esc_html_e('Cookie configuration class not loaded. Please check plugin installation.', 'wp-rest-auth-oauth2'); ?></p>
+            </div>
+            <?php
+            return;
+        }
+
+        $environment = OAuth2_Cookie_Config::get_environment();
+        $current_config = OAuth2_Cookie_Config::get_config();
+        ?>
+        <p><?php esc_html_e('Configure cookie security settings for OAuth2 refresh tokens. Settings are automatically configured based on your environment. Use "Auto" to let the plugin detect appropriate settings.', 'wp-rest-auth-oauth2'); ?></p>
+
+        <div class="notice notice-info inline">
+            <p>
+                <strong><?php esc_html_e('Current Environment:', 'wp-rest-auth-oauth2'); ?></strong>
+                <code><?php echo esc_html($environment); ?></code>
+            </p>
+        </div>
+
+        <div class="notice notice-warning inline">
+            <h4><?php esc_html_e('Active Cookie Configuration', 'wp-rest-auth-oauth2'); ?></h4>
+            <table class="widefat" style="max-width: 600px;">
+                <tbody>
+                    <tr>
+                        <td><strong><?php esc_html_e('SameSite:', 'wp-rest-auth-oauth2'); ?></strong></td>
+                        <td><code><?php echo esc_html($current_config['samesite']); ?></code></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e('Secure:', 'wp-rest-auth-oauth2'); ?></strong></td>
+                        <td><code><?php echo esc_html($current_config['secure'] ? 'true' : 'false'); ?></code></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e('Path:', 'wp-rest-auth-oauth2'); ?></strong></td>
+                        <td><code><?php echo esc_html($current_config['path']); ?></code></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e('Domain:', 'wp-rest-auth-oauth2'); ?></strong></td>
+                        <td><code><?php echo esc_html($current_config['domain'] ?: '(current domain)'); ?></code></td>
+                    </tr>
+                    <tr>
+                        <td><strong><?php esc_html_e('HttpOnly:', 'wp-rest-auth-oauth2'); ?></strong></td>
+                        <td><code><?php echo esc_html($current_config['httponly'] ? 'true' : 'false'); ?></code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="notice notice-info inline">
+            <h4><?php esc_html_e('Environment Detection Logic', 'wp-rest-auth-oauth2'); ?></h4>
+            <ul>
+                <li><strong><?php esc_html_e('Development:', 'wp-rest-auth-oauth2'); ?></strong>
+                    <?php esc_html_e('localhost, *.local, *.test domains OR WP_DEBUG enabled', 'wp-rest-auth-oauth2'); ?>
+                </li>
+                <li><strong><?php esc_html_e('Staging:', 'wp-rest-auth-oauth2'); ?></strong>
+                    <?php esc_html_e('Domains containing "staging", "dev", or "test"', 'wp-rest-auth-oauth2'); ?>
+                </li>
+                <li><strong><?php esc_html_e('Production:', 'wp-rest-auth-oauth2'); ?></strong>
+                    <?php esc_html_e('All other domains', 'wp-rest-auth-oauth2'); ?>
+                </li>
+            </ul>
+        </div>
+        <?php
+    }
+
+    public function cookie_samesite_field() {
+        $defaults = class_exists('OAuth2_Cookie_Config') ? OAuth2_Cookie_Config::get_defaults() : ['samesite' => 'auto'];
+        $config = get_option('oauth2_auth_cookie_config', $defaults);
+        $value = $config['samesite'] ?? 'auto';
+        ?>
+        <select name="oauth2_auth_cookie_config[samesite]">
+            <option value="auto" <?php selected($value, 'auto'); ?>>
+                <?php esc_html_e('Auto (Recommended)', 'wp-rest-auth-oauth2'); ?>
+            </option>
+            <option value="None" <?php selected($value, 'None'); ?>>
+                <?php esc_html_e('None (Cross-site allowed)', 'wp-rest-auth-oauth2'); ?>
+            </option>
+            <option value="Lax" <?php selected($value, 'Lax'); ?>>
+                <?php esc_html_e('Lax (Relaxed)', 'wp-rest-auth-oauth2'); ?>
+            </option>
+            <option value="Strict" <?php selected($value, 'Strict'); ?>>
+                <?php esc_html_e('Strict (Maximum security)', 'wp-rest-auth-oauth2'); ?>
+            </option>
+        </select>
+        <p class="description">
+            <?php esc_html_e('Auto: None (development), Lax (staging), Strict (production)', 'wp-rest-auth-oauth2'); ?>
+        </p>
+        <?php
+    }
+
+    public function cookie_secure_field() {
+        $defaults = class_exists('OAuth2_Cookie_Config') ? OAuth2_Cookie_Config::get_defaults() : ['secure' => 'auto'];
+        $config = get_option('oauth2_auth_cookie_config', $defaults);
+        $value = $config['secure'] ?? 'auto';
+        ?>
+        <select name="oauth2_auth_cookie_config[secure]">
+            <option value="auto" <?php selected($value, 'auto'); ?>>
+                <?php esc_html_e('Auto (Recommended)', 'wp-rest-auth-oauth2'); ?>
+            </option>
+            <option value="1" <?php selected($value, '1'); ?>>
+                <?php esc_html_e('Enabled (HTTPS required)', 'wp-rest-auth-oauth2'); ?>
+            </option>
+            <option value="0" <?php selected($value, '0'); ?>>
+                <?php esc_html_e('Disabled (HTTP allowed)', 'wp-rest-auth-oauth2'); ?>
+            </option>
+        </select>
+        <p class="description">
+            <?php esc_html_e('Auto: Enabled for staging/production, disabled for development without HTTPS', 'wp-rest-auth-oauth2'); ?>
+        </p>
+        <?php
+    }
+
+    public function cookie_path_field() {
+        $defaults = class_exists('OAuth2_Cookie_Config') ? OAuth2_Cookie_Config::get_defaults() : ['path' => 'auto'];
+        $config = get_option('oauth2_auth_cookie_config', $defaults);
+        $value = $config['path'] ?? 'auto';
+        ?>
+        <input type="text"
+            name="oauth2_auth_cookie_config[path]"
+            value="<?php echo esc_attr($value); ?>"
+            class="regular-text"
+            placeholder="auto"
+        />
+        <p class="description">
+            <?php esc_html_e('Auto: "/" (development), "/wp-json/oauth2/v1/" (staging/production)', 'wp-rest-auth-oauth2'); ?>
+        </p>
+        <?php
+    }
+
+    public function cookie_domain_field() {
+        $defaults = class_exists('OAuth2_Cookie_Config') ? OAuth2_Cookie_Config::get_defaults() : ['domain' => 'auto'];
+        $config = get_option('oauth2_auth_cookie_config', $defaults);
+        $value = $config['domain'] ?? 'auto';
+        ?>
+        <input type="text"
+            name="oauth2_auth_cookie_config[domain]"
+            value="<?php echo esc_attr($value); ?>"
+            class="regular-text"
+            placeholder="auto"
+        />
+        <p class="description">
+            <?php esc_html_e('Auto: Empty (current domain only). Use for subdomain sharing (e.g., ".example.com")', 'wp-rest-auth-oauth2'); ?>
+        </p>
+        <?php
+    }
+
+    public function sanitize_cookie_settings($input) {
+        // Get existing settings or defaults
+        $defaults = class_exists('OAuth2_Cookie_Config') ? OAuth2_Cookie_Config::get_defaults() : [
+            'samesite' => 'auto',
+            'secure' => 'auto',
+            'path' => 'auto',
+            'domain' => 'auto',
+        ];
+        $existing = get_option('oauth2_auth_cookie_config', $defaults);
+
+        // Handle null or invalid input - return existing settings
+        if (!is_array($input)) {
+            return $existing;
+        }
+
+        // Start with existing settings to preserve all fields
+        $sanitized = $existing;
+
+        // Sanitize SameSite
+        if (isset($input['samesite'])) {
+            $valid_samesite = ['auto', 'None', 'Lax', 'Strict'];
+            $sanitized['samesite'] = in_array($input['samesite'], $valid_samesite, true) ? $input['samesite'] : 'auto';
+        }
+
+        // Sanitize Secure
+        if (isset($input['secure'])) {
+            if ('auto' === $input['secure']) {
+                $sanitized['secure'] = 'auto';
+            } else {
+                $sanitized['secure'] = in_array($input['secure'], ['1', 1, true], true) ? '1' : '0';
+            }
+        }
+
+        // Sanitize Path
+        if (isset($input['path'])) {
+            $sanitized['path'] = 'auto' === $input['path'] ? 'auto' : sanitize_text_field($input['path']);
+        }
+
+        // Sanitize Domain
+        if (isset($input['domain'])) {
+            $sanitized['domain'] = 'auto' === $input['domain'] ? 'auto' : sanitize_text_field($input['domain']);
+        }
+
+        // Clear cache after saving (if class exists)
+        if (class_exists('OAuth2_Cookie_Config') && method_exists('OAuth2_Cookie_Config', 'clear_cache')) {
+            OAuth2_Cookie_Config::clear_cache();
+        }
+
+        return $sanitized;
     }
 
     // Helper methods to get settings

@@ -23,9 +23,6 @@ jQuery(document).ready(function($) {
      * Bind event handlers
      */
     function bindEvents() {
-        // Tab navigation
-        $('.nav-tab').on('click', handleTabClick);
-
         // Client management
         $('#add-oauth2-client').on('click', showAddClientModal);
         $('#save-oauth2-client').on('click', saveClient);
@@ -67,37 +64,10 @@ jQuery(document).ready(function($) {
     }
 
     /**
-     * Handle tab clicks
-     */
-    function handleTabClick(e) {
-        e.preventDefault();
-
-        const $tab = $(this);
-        const targetTab = $tab.data('tab');
-
-        // Update active tab
-        $('.nav-tab').removeClass('nav-tab-active');
-        $tab.addClass('nav-tab-active');
-
-        // Show corresponding content
-        $('.tab-content').hide();
-        $('#' + targetTab).show();
-
-        // Update URL hash
-        window.location.hash = targetTab;
-    }
-
-    /**
      * Initialize client management
      */
     function initClientManagement() {
         loadClients();
-
-        // Handle URL hash for tab navigation
-        if (window.location.hash) {
-            const hash = window.location.hash.substring(1);
-            $(`.nav-tab[data-tab="${hash}"]`).click();
-        }
     }
 
     /**
