@@ -1,97 +1,161 @@
-# OAuth2 Auth Pro WP REST API
+# OAuth2 Auth Pro - WP REST API
 
-> **Secure OAuth2 authentication for headless WordPress, SPAs, and mobile apps. No bloat, no upselling.**
+[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html) [![WordPress](https://img.shields.io/badge/WordPress-%3E%3D5.6-blue.svg)](https://wordpress.org) [![PHP Version](https://img.shields.io/badge/PHP-%3E%3D7.4-blue.svg)](https://php.net)
 
-OAuth2 server implementation for WordPress REST API with PKCE support, scope-based permissions, and refresh token rotation. Built for developers creating headless WordPress sites, mobile apps, and single-page applications.
+Secure OAuth2 authentication for headless WordPress, SPAs, and mobile apps. No bloat, no upselling.
 
-## Features
 
-### OAuth2 Implementation
-- **Complete OAuth2 Flow** - Full Authorization Code flow
-- **PKCE Support** - Proof Key for Code Exchange (RFC 7636) for public clients
-- **Multi-Client Support** - Manage multiple OAuth2 applications
-- **Token Management** - Access tokens and refresh tokens
+## 🚀 Why OAuth2 Auth Pro?
+
+Unlike basic authentication plugins, OAuth2 Auth Pro implements **complete OAuth 2.0 Authorization Code flow with PKCE** following modern security best practices for decoupled WordPress applications.
+
+### ⚡ Security Comparison
+
+| Feature | Basic Auth Plugins | OAuth2 Auth Pro |
+|---------|-------------------|--------------|
+| **Authorization Flow** | Simple passwords ❌ | OAuth 2.0 + PKCE ✅ |
+| **Token Lifetime** | Long or N/A ❌ | Short access tokens ✅ |
+| **Refresh Tokens** | None ❌ | Secure rotation ✅ |
+| **Scoped Permissions** | None ❌ | Endpoint-level scopes ✅ |
+| **User Consent** | None ❌ | Built-in consent screen ✅ |
+| **Multi-Client Support** | Limited ❌ | Full client management ✅ |
+| **PKCE Support** | None ❌ | RFC 7636 compliant ✅ |
+
+### 🔒 **The Problem with Basic Auth:**
+- **No authorization flow** = Direct password exposure
+- **No scoped access** = All-or-nothing permissions
+- **No user consent** = Users can't control what apps access
+- **No client management** = Can't manage multiple apps
+
+### ✅ **OAuth2 Auth Pro Solution:**
+- **Complete OAuth2 flow** = Industry-standard authorization
+- **PKCE support** = Protection against authorization code interception
+- **Scope-based permissions** = Granular access control per endpoint
+- **User consent screen** = Users control app access
+- **Multi-client support** = Manage unlimited OAuth2 clients
+
+🔐 **Professional OAuth2 authentication for WordPress.**
+
+## ✨ Features
+
+- **OAuth2 Authorization Code Flow** - Complete RFC 6749 implementation
+- **PKCE Support (RFC 7636)** - Protection for public clients (mobile, SPAs)
+- **Scope-Based Permissions** - Automatic enforcement on REST API endpoints
 - **Refresh Token Rotation** - Enhanced security with automatic rotation
-- **Client Management** - Full CRUD operations for OAuth2 clients
-- **Login Page** - Built-in authorization page for user consent
-- **Redirect to Source App** - Seamless callback handling
+- **Multi-Client Management** - Admin interface for managing OAuth2 clients
+- **Built-in Consent Screen** - User authorization and consent flow
+- **Clean Admin Interface** - Simple configuration in WordPress admin
+- **Developer Friendly** - Clear endpoints and documentation
 
-### Security Features
-- **CORS Management** - Configurable cross-origin policies
-- **IP & User Agent Tracking** - Comprehensive security logging
-- **Token Revocation** - Immediate token invalidation
-- **Secure Token Storage** - Database-backed token management
-
-### Management
-- **Admin Interface** - Comprehensive client and settings management
-- **Real-time Testing** - Built-in OAuth2 flow testing
-- **Debugging Tools** - Detailed logging and diagnostics
-
-## Quick Start
+## 🚀 Quick Start
 
 ### 1. Install & Activate
 1. Upload the plugin to `/wp-content/plugins/`
 2. Activate through WordPress admin
-3. Go to Settings → WP REST Auth OAuth2
+3. Go to Settings → OAuth2 Auth Pro
 
-### 2. Create OAuth2 Client
-1. Navigate to the "OAuth2 Clients" tab
-2. Click "Add New Client"
-3. Configure:
-   - **Client ID**: Unique identifier (e.g., `my-app`)
-   - **Client Name**: Human-readable name
-   - **Redirect URIs**: Authorized callback URLs
+### 2. Configure
+1. Generate an OAuth2 Secret (or add to wp-config.php)
+2. Set token expiration times
+3. Create OAuth2 clients for your applications
+4. Configure redirect URIs and scopes
 
-### 3. Start Integration
+### 3. Start Using
 ```javascript
-// Step 1: Redirect to authorization endpoint
-const authUrl = `https://your-site.com/wp-json/oauth2/v1/authorize?` +
-    `client_id=your-client-id&` +
-    `redirect_uri=https://your-app.com/callback&` +
-    `response_type=code&` +
-    `scope=read write&` +
-    `state=random-state-string`;
+// Step 1: Redirect user to authorization endpoint
+const authUrl = new URL('/wp-json/oauth2/v1/authorize', 'https://your-site.com');
+authUrl.searchParams.set('client_id', 'your-client-id');
+authUrl.searchParams.set('redirect_uri', 'https://your-app.com/callback');
+authUrl.searchParams.set('response_type', 'code');
+authUrl.searchParams.set('scope', 'read write');
+authUrl.searchParams.set('state', 'random-state-value');
+authUrl.searchParams.set('code_challenge', 'base64-url-encoded-challenge');
+authUrl.searchParams.set('code_challenge_method', 'S256');
 
-window.location.href = authUrl;
+window.location.href = authUrl.toString();
 
-// Step 2: Handle callback (at your redirect URI)
-const urlParams = new URLSearchParams(window.location.search);
-const authCode = urlParams.get('code');
+// Step 2: Handle callback and exchange code for tokens
+const code = new URLSearchParams(window.location.search).get('code');
 
-// Step 3: Exchange code for tokens
-const tokenResponse = await fetch('https://your-site.com/wp-json/oauth2/v1/token', {
+const response = await fetch('/wp-json/oauth2/v1/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
         grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: 'https://your-app.com/callback',
         client_id: 'your-client-id',
-        client_secret: 'your-client-secret',
-        code: authCode,
-        redirect_uri: 'https://your-app.com/callback'
+        code_verifier: 'original-code-verifier' // PKCE verifier
     })
 });
 
-const tokens = await tokenResponse.json();
-// Store tokens securely...
+const { access_token, refresh_token } = await response.json();
+
+// Step 3: Use access token for API calls
+const posts = await fetch('/wp-json/wp/v2/posts', {
+    headers: { 'Authorization': `Bearer ${access_token}` }
+});
 ```
 
-## OAuth2 Endpoints
+## 📍 Endpoints
 
-### Authorization Flow
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/wp-json/oauth2/v1/authorize` | Authorization endpoint (login page) |
-| `POST` | `/wp-json/oauth2/v1/token` | Token exchange endpoint |
-| `POST` | `/wp-json/oauth2/v1/refresh` | Refresh token endpoint |
+| `GET` | `/wp-json/oauth2/v1/authorize` | Authorization endpoint (user consent) |
+| `POST` | `/wp-json/oauth2/v1/token` | Token endpoint (exchange code/refresh) |
 | `POST` | `/wp-json/oauth2/v1/revoke` | Token revocation endpoint |
-
-### Utility Endpoints
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/wp-json/oauth2/v1/userinfo` | Get current user info |
+| `GET` | `/wp-json/oauth2/v1/userinfo` | Get user information with token |
 | `GET` | `/wp-json/oauth2/v1/scopes` | List available scopes |
 
-## Available Scopes
+## 🔒 Security
+
+- **OAuth 2.0 Authorization Code Flow** - Industry standard authorization
+- **PKCE Support** - Protection against authorization code interception (RFC 7636)
+- **Scope-Based Access Control** - Granular permissions per endpoint
+- **Refresh Token Rotation** - Tokens automatically rotate on use
+- **Secure Token Storage** - Hashed tokens in database
+- **IP & User Agent Tracking** - Additional security metadata
+- **Configurable Expiration** - Set custom token lifetimes
+
+## ⚙️ Configuration
+
+### Via wp-config.php (Recommended for production)
+```php
+define('WP_OAUTH2_SECRET', 'your-super-secret-key-here');
+define('WP_OAUTH2_ACCESS_TTL', 3600);      // 1 hour
+define('WP_OAUTH2_REFRESH_TTL', 2592000);  // 30 days
+```
+
+### Via WordPress Admin
+Go to **Settings → OAuth2 Auth Pro** to configure:
+- OAuth2 Secret Key
+- Token expiration times
+- OAuth2 clients and redirect URIs
+- Scopes and permissions
+- Debug logging
+
+## 💡 Use Cases
+
+Perfect for:
+- **Single Page Applications** (React, Vue, Angular)
+- **Mobile Applications** (iOS, Android)
+- **Third-Party Integrations** (OAuth2 authorization)
+- **Headless WordPress** (Decoupled architecture)
+- **Multi-tenant Applications** (Client management)
+
+## 🔄 OAuth2 Flow
+
+1. **Authorization Request** → User redirects to authorize endpoint
+2. **User Consent** → User approves scopes and permissions
+3. **Authorization Code** → User redirected back with code
+4. **Token Exchange** → Exchange code for access + refresh tokens
+5. **API Calls** → Use access token in Authorization header
+6. **Token Refresh** → Use refresh token to get new access token
+7. **Token Revocation** → Revoke tokens when done
+
+## 🛠️ Scopes
+
+Available scopes for granular access control:
 
 | Scope | Description | Required Capability |
 |-------|-------------|-------------------|
@@ -106,47 +170,17 @@ const tokens = await tokenResponse.json();
 | `manage_plugins` | Manage plugins | `activate_plugins` |
 | `manage_options` | Site settings access | `manage_options` |
 
-## Complete OAuth2 Flow
+## 🔐 PKCE Support (For Mobile & SPA Apps)
 
-```mermaid
-graph TD
-    A[Client App] --> B[Authorization Request]
-    B --> C[User Login & Consent]
-    C --> D[Authorization Code]
-    D --> E[Token Exchange]
-    E --> F[Access Token + Refresh Token]
-    F --> G[API Calls with Bearer Token]
-    G --> H[Token Expires]
-    H --> I[Refresh Token]
-    I --> J[New Access Token]
-```
+PKCE (Proof Key for Code Exchange) adds security for public clients that cannot securely store a client secret.
 
-## PKCE Support (For Mobile & SPA Apps)
-
-PKCE (Proof Key for Code Exchange) adds security for public clients that cannot securely store a client secret. This is essential for mobile apps and single-page applications.
-
-### How PKCE Works
-
-1. Client generates a random `code_verifier` (43-128 characters)
-2. Client creates a `code_challenge` by hashing the verifier
-3. Authorization request includes the challenge
-4. Token request includes the verifier for validation
-
-### JavaScript/TypeScript Example
-
+### JavaScript Example
 ```javascript
-// Step 1: Generate code verifier and challenge
+// Generate code verifier and challenge
 function generateCodeVerifier() {
     const array = new Uint8Array(32);
     crypto.getRandomValues(array);
     return base64UrlEncode(array);
-}
-
-function base64UrlEncode(buffer) {
-    return btoa(String.fromCharCode(...buffer))
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=/g, '');
 }
 
 async function generateCodeChallenge(verifier) {
@@ -156,31 +190,24 @@ async function generateCodeChallenge(verifier) {
     return base64UrlEncode(new Uint8Array(hash));
 }
 
-// Generate PKCE parameters
 const codeVerifier = generateCodeVerifier();
 const codeChallenge = await generateCodeChallenge(codeVerifier);
 
 // Store verifier for later use
 sessionStorage.setItem('code_verifier', codeVerifier);
 
-// Step 2: Authorization request with PKCE
+// Authorization request with PKCE
 const authUrl = `https://your-site.com/wp-json/oauth2/v1/authorize?` +
     `client_id=your-client-id&` +
     `redirect_uri=https://your-app.com/callback&` +
     `response_type=code&` +
     `scope=read write&` +
-    `state=random-state-string&` +
     `code_challenge=${codeChallenge}&` +
     `code_challenge_method=S256`;
 
 window.location.href = authUrl;
 
-// Step 3: Handle callback and exchange code
-const urlParams = new URLSearchParams(window.location.search);
-const authCode = urlParams.get('code');
-const storedVerifier = sessionStorage.getItem('code_verifier');
-
-// Step 4: Exchange code for tokens (no client_secret needed!)
+// Exchange code for tokens (no client_secret needed!)
 const tokenResponse = await fetch('https://your-site.com/wp-json/oauth2/v1/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -192,230 +219,56 @@ const tokenResponse = await fetch('https://your-site.com/wp-json/oauth2/v1/token
         code_verifier: storedVerifier  // Proves we started the flow
     })
 });
-
-const tokens = await tokenResponse.json();
-// Success! Access token received without exposing client_secret
 ```
 
-### PHP Example (Server-Side)
+## 🧪 Testing (wp-env)
 
-```php
-// Generate code verifier
-function generateCodeVerifier() {
-    return rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
-}
+Run tests using the NPM scripts which leverage wp-env:
 
-// Generate code challenge
-function generateCodeChallenge($verifier) {
-    $hash = hash('sha256', $verifier, true);
-    return rtrim(strtr(base64_encode($hash), '+/', '-_'), '=');
-}
-
-// Step 1: Create PKCE parameters
-$codeVerifier = generateCodeVerifier();
-$codeChallenge = generateCodeChallenge($codeVerifier);
-
-// Store verifier in session
-$_SESSION['oauth_code_verifier'] = $codeVerifier;
-
-// Step 2: Build authorization URL
-$authUrl = 'https://your-site.com/wp-json/oauth2/v1/authorize?' . http_build_query([
-    'client_id' => 'your-client-id',
-    'redirect_uri' => 'https://your-app.com/callback',
-    'response_type' => 'code',
-    'scope' => 'read write',
-    'state' => bin2hex(random_bytes(16)),
-    'code_challenge' => $codeChallenge,
-    'code_challenge_method' => 'S256'
-]);
-
-// Redirect user
-header('Location: ' . $authUrl);
-exit;
-
-// Step 3: Handle callback (at redirect_uri)
-$authCode = $_GET['code'];
-$codeVerifier = $_SESSION['oauth_code_verifier'];
-
-// Step 4: Exchange for tokens
-$response = wp_remote_post('https://your-site.com/wp-json/oauth2/v1/token', [
-    'body' => [
-        'grant_type' => 'authorization_code',
-        'client_id' => 'your-client-id',
-        'code' => $authCode,
-        'redirect_uri' => 'https://your-app.com/callback',
-        'code_verifier' => $codeVerifier
-    ]
-]);
-
-$tokens = json_decode(wp_remote_retrieve_body($response), true);
-// Access token received!
-```
-
-### PKCE vs Traditional Flow
-
-| Feature | Traditional Flow | PKCE Flow |
-|---------|-----------------|-----------|
-| **Client Secret** | Required | Not required |
-| **Best For** | Server-side apps | Mobile apps, SPAs |
-| **Security** | Secret must be stored | No secret to steal |
-| **Complexity** | Simple | Slightly more complex |
-| **Standard** | OAuth 2.0 | RFC 7636 |
-
-### When to Use PKCE
-
-✅ **Use PKCE for:**
-- Mobile applications (iOS, Android, React Native)
-- Single Page Applications (React, Vue, Angular)
-- Desktop applications
-- Any client that cannot securely store a secret
-
-❌ **Traditional flow for:**
-- Server-to-server integrations
-- Backend applications with secure storage
-- Trusted environments
-
-## Configuration
-
-### Environment Variables (Production)
-```php
-// wp-config.php
-define('WP_OAUTH2_SECRET', 'your-oauth2-secret-key');
-```
-
-### Admin Configuration
-Navigate to **Settings → WP REST Auth OAuth2**:
-
-#### General Settings
-- CORS allowed origins
-- Debug logging
-- Security headers
-
-#### OAuth2 Clients
-- Client ID and secret management
-- Redirect URI configuration
-- Client-specific settings
-
-## Testing Your Integration
-
-### Built-in Test Client
-The plugin includes a demo client for testing:
-- **Client ID**: `demo-client`
-- **Client Secret**: `demo-secret`
-- **Redirect URIs**: Preconfigured for common development URLs
-
-### cURL Examples
 ```bash
-# Get authorization (redirect in browser)
-curl "https://your-site.com/wp-json/oauth2/v1/authorize?client_id=demo-client&redirect_uri=http://localhost:3000/callback&response_type=code&scope=read+write"
+# Start environment
+npm run env:start
 
-# Exchange code for tokens
-curl -X POST "https://your-site.com/wp-json/oauth2/v1/token" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "grant_type": "authorization_code",
-    "client_id": "demo-client",
-    "client_secret": "demo-secret",
-    "code": "your-auth-code",
-    "redirect_uri": "http://localhost:3000/callback"
-  }'
+# Run tests
+npm run test
 
-# Make authenticated request
-curl "https://your-site.com/wp-json/wp/v2/posts" \
-  -H "Authorization: Bearer your-access-token"
-
-# Refresh token
-curl -X POST "https://your-site.com/wp-json/oauth2/v1/refresh" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "grant_type": "refresh_token",
-    "refresh_token": "your-refresh-token"
-  }'
+# Stop environment
+npm run env:stop
 ```
 
-## Use Cases
+## ❓ Need Simpler Authentication?
 
-- **Headless WordPress** - Secure authentication for decoupled frontends
-- **Mobile Applications** - Native iOS/Android app authentication with PKCE
-- **Single Page Applications** - React, Vue, Angular authentication
-- **Third-party Integrations** - Secure API access for external services
-- **Microservices** - Service-to-service authentication
+This plugin provides full OAuth2 authorization. If you need:
+- Simple JWT authentication
+- Stateless tokens only
+- No authorization flow
+- Basic REST API auth
 
-## Why Choose OAuth2 Auth Pro?
+Check out our companion plugin: **JWT Auth Pro - Secure Refresh Tokens**
 
-✅ **PKCE Support** - Secure authentication for public clients without storing secrets
-✅ **Scope-Based Permissions** - Automatic endpoint enforcement with WordPress capabilities
-✅ **Clean Code** - Modern, tested, maintainable codebase
-✅ **Zero Bloat** - No premium upselling, no unnecessary features
-✅ **Security-First** - Token hashing, rotation, timing-safe comparisons
-✅ **Developer-Friendly** - Clear errors, comprehensive docs, test suite included
-
-**Part of the "Auth Pro WP REST API" family:**
-- [JWT Auth Pro WP REST API - Secure Refresh Tokens](https://github.com/juanma-wp/jwt-auth-pro-wp-rest-api)
-- OAuth2 Auth Pro WP REST API
-
-## Monitoring & Debugging
-
-### Debug Logging
-Enable debug logging to monitor OAuth2 flows:
-1. Enable WP_DEBUG in wp-config.php
-2. Enable debug logging in plugin settings
-3. Check `/wp-content/debug.log` for OAuth2 events
-
-### Token Management
-- View active tokens in admin interface
-- Monitor token usage and expiration
-- Bulk revoke tokens for security incidents
-
-### Security Monitoring
-- Track failed authorization attempts
-- Monitor refresh token usage
-- Log client authentication failures
-
-## Requirements
+## 📝 Requirements
 
 - WordPress 5.6+
 - PHP 7.4+
-- HTTPS (required for production OAuth2)
-- Modern browser support for admin interface
+- HTTPS (recommended for production)
 
-## Testing
-
-Run comprehensive tests:
-
-```bash
-# Unit tests
-composer test
-
-# Integration tests
-composer test-integration
-
-# OAuth2 flow tests
-composer test-oauth2
-```
-
-## License
+## 📄 License
 
 GPL v2 or later
 
-## Contributing
+## 🤝 Contributing
 
-Contributions welcome! Please:
-1. Follow WordPress coding standards
-2. Include comprehensive tests
-3. Update documentation
-4. Consider security implications
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Support
+## 📚 References
 
-- **Issues:** [GitHub Issues](https://github.com/juanma-wp/wp-rest-auth-oauth2/issues)
-- **Documentation:** This README
-- **Sibling Plugin:** [JWT Auth Pro WP REST API](https://github.com/juanma-wp/jwt-auth-pro-wp-rest-api)
-
-## Credits
-
-Created and maintained by [Juan Manuel Garrido](https://github.com/juanma-wp)
+- **OAuth 2.0 Authorization Framework (RFC 6749)**: [RFC 6749](https://datatracker.ietf.org/doc/html/rfc6749)
+- **OAuth 2.0 PKCE (RFC 7636)**: [RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)
+- **OAuth 2.0 Token Revocation (RFC 7009)**: [RFC 7009](https://datatracker.ietf.org/doc/html/rfc7009)
+- **OAuth 2.0 Security Best Current Practice (IETF)**: [datatracker draft](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics)
+- **OAuth 2.0 for Browser-Based Apps (IETF)**: [datatracker draft](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-browser-based-apps)
+- **OAuth 2.0 Scope Syntax (RFC 6749 Section 3.3)**: [RFC 6749 Section 3.3](https://datatracker.ietf.org/doc/html/rfc6749#section-3.3)
 
 ---
 
-**Part of the Auth Pro WP REST API family - Professional authentication solutions for WordPress** 🔒
+**Professional. Secure. OAuth2.** 🔐

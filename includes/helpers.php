@@ -8,49 +8,42 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+use WPRestAuth\AuthToolkit\Token\Generator;
+use WPRestAuth\AuthToolkit\Token\Hasher;
+use WPRestAuth\AuthToolkit\Security\IpResolver;
+use WPRestAuth\AuthToolkit\Security\UserAgent;
+use WPRestAuth\AuthToolkit\Http\Cookie;
+use WPRestAuth\AuthToolkit\Http\Cors;
+use WPRestAuth\AuthToolkit\Http\Response;
+use WPRestAuth\AuthToolkit\OAuth2\Pkce;
+use WPRestAuth\AuthToolkit\OAuth2\Scope;
+
 /**
  * Generate a secure random token
  */
 function wp_auth_oauth2_generate_token(int $length = 64): string {
-    if (function_exists('random_bytes')) {
-        return bin2hex(random_bytes($length / 2));
-    }
-
-    return wp_generate_password($length, false);
+    return Generator::generate($length);
 }
 
 /**
  * Hash a token for database storage
  */
 function wp_auth_oauth2_hash_token(string $token, string $secret): string {
-    return hash_hmac('sha256', $token, $secret);
+    return Hasher::make($token, $secret);
 }
 
 /**
  * Get client IP address
  */
 function wp_auth_oauth2_get_ip_address(): string {
-    $ip_keys = ['HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'HTTP_CLIENT_IP', 'REMOTE_ADDR'];
-
-    foreach ($ip_keys as $key) {
-        if (array_key_exists($key, $_SERVER) && !empty($_SERVER[$key])) {
-            $ip = explode(',', $_SERVER[$key])[0];
-            $ip = trim($ip);
-
-            if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-                return $ip;
-            }
-        }
-    }
-
-    return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    return IpResolver::get();
 }
 
 /**
  * Get user agent
  */
 function wp_auth_oauth2_get_user_agent(): string {
-    return $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
+    return UserAgent::get();
 }
 
 /**
@@ -64,28 +57,14 @@ function wp_auth_oauth2_set_cookie(
     bool $httponly = true,
     ?bool $secure = null
 ): bool {
-    $secure = $secure ?? is_ssl();
-    $samesite = apply_filters('wp_auth_oauth2_cookie_samesite', 'Strict');
-
-    if (PHP_VERSION_ID >= 70300) {
-        return setcookie($name, $value, [
-            'expires' => $expires,
-            'path' => $path,
-            'domain' => '',
-            'secure' => $secure,
-            'httponly' => $httponly,
-            'samesite' => $samesite
-        ]);
-    } else {
-        return setcookie($name, $value, $expires, $path . '; SameSite=' . $samesite, '', $secure, $httponly);
-    }
+    return Cookie::set($name, $value, $expires, $path, $httponly, $secure);
 }
 
 /**
  * Delete cookie
  */
 function wp_auth_oauth2_delete_cookie(string $name, string $path = '/'): bool {
-    return wp_auth_oauth2_set_cookie($name, '', time() - 3600, $path);
+    return Cookie::delete($name, $path);
 }
 
 /**
@@ -348,7 +327,7 @@ function wp_auth_oauth2_create_error_response(string $error, ?string $descriptio
  * Validate PKCE code challenge method
  */
 function wp_auth_oauth2_validate_code_challenge_method(string $method): bool {
-    return in_array($method, ['S256', 'plain'], true);
+    return Pkce::validateMethod($method);
 }
 
 /**
@@ -359,18 +338,11 @@ function wp_auth_oauth2_validate_code_challenge_method(string $method): bool {
  * @return string|false The code challenge, or false on error
  */
 function wp_auth_oauth2_generate_code_challenge(string $code_verifier, string $method = 'S256') {
-    if (!wp_auth_oauth2_validate_code_verifier($code_verifier)) {
+    try {
+        return Pkce::generateChallenge($code_verifier, $method);
+    } catch (\InvalidArgumentException $e) {
         return false;
     }
-
-    if ($method === 'S256') {
-        $hash = hash('sha256', $code_verifier, true);
-        return rtrim(strtr(base64_encode($hash), '+/', '-_'), '=');
-    } elseif ($method === 'plain') {
-        return $code_verifier;
-    }
-
-    return false;
 }
 
 /**
@@ -378,12 +350,7 @@ function wp_auth_oauth2_generate_code_challenge(string $code_verifier, string $m
  * Must be 43-128 characters of [A-Z] / [a-z] / [0-9] / "-" / "." / "_" / "~"
  */
 function wp_auth_oauth2_validate_code_verifier(string $code_verifier): bool {
-    $length = strlen($code_verifier);
-    if ($length < 43 || $length > 128) {
-        return false;
-    }
-
-    return preg_match('/^[A-Za-z0-9\-._~]+$/', $code_verifier) === 1;
+    return Pkce::validateVerifier($code_verifier);
 }
 
 /**
@@ -395,16 +362,5 @@ function wp_auth_oauth2_validate_code_verifier(string $code_verifier): bool {
  * @return bool True if verification succeeds
  */
 function wp_auth_oauth2_verify_code_challenge(string $code_verifier, string $code_challenge, string $method = 'S256'): bool {
-    if (!wp_auth_oauth2_validate_code_verifier($code_verifier)) {
-        return false;
-    }
-
-    $computed_challenge = wp_auth_oauth2_generate_code_challenge($code_verifier, $method);
-
-    if ($computed_challenge === false) {
-        return false;
-    }
-
-    // Timing-safe comparison to prevent timing attacks
-    return hash_equals($code_challenge, $computed_challenge);
+    return Pkce::verify($code_verifier, $code_challenge, $method);
 }

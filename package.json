@@ -1,22 +1,40 @@
 {
   "name": "wp-rest-auth-oauth2",
   "version": "1.0.0",
-  "description": "Enterprise-grade OAuth2 authentication with API Proxy security for WordPress REST API",
+  "description": "Secure OAuth2 authentication for headless WordPress, SPAs, and mobile apps",
   "private": true,
   "scripts": {
+    "env": "wp-env",
     "env:start": "wp-env start",
+    "env:start:debug": "wp-env start --xdebug",
     "env:stop": "wp-env stop",
-    "env:restart": "wp-env stop && wp-env start",
-    "env:clean": "wp-env clean",
     "env:destroy": "wp-env destroy",
-    "test": "wp-env run tests-cli phpunit",
-    "test:watch": "wp-env run tests-cli phpunit --watch"
+    "env:clean": "wp-env clean all",
+    "env:logs": "wp-env logs",
+    "env:reset": "wp-env destroy && wp-env start",
+    "env:update": "wp-env start --update",
+    "composer:install": "wp-env run tests-cli --env-cwd=wp-content/plugins/wp-rest-auth-oauth2 bash -lc 'composer install --no-interaction --prefer-dist'",
+    "test": "wp-env run tests-cli --env-cwd=wp-content/plugins/wp-rest-auth-oauth2 vendor/bin/phpunit --testdox",
+    "test:unit": "wp-env run tests-cli --env-cwd=wp-content/plugins/wp-rest-auth-oauth2 vendor/bin/phpunit --testsuite=unit --testdox",
+    "test:integration": "wp-env run tests-cli --env-cwd=wp-content/plugins/wp-rest-auth-oauth2 vendor/bin/phpunit --testsuite=integration --testdox"
   },
   "devDependencies": {
-    "@wordpress/env": "^8.7.0"
+    "@wordpress/env": "^10.31.0"
   },
   "engines": {
     "node": ">=16.0.0",
     "npm": ">=8.0.0"
-  }
+  },
+  "keywords": [
+    "wordpress",
+    "plugin",
+    "oauth2",
+    "authentication",
+    "rest-api",
+    "pkce",
+    "spa",
+    "mobile"
+  ],
+  "author": "WordPress Developer",
+  "license": "GPL-2.0-or-later"
 }

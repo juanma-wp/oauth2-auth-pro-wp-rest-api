@@ -126,6 +126,29 @@ class Auth_OAuth2 {
             'permission_callback' => '__return_true'
         ]);
 
+        register_rest_route('oauth2/v1', '/revoke', [
+            'methods' => 'POST',
+            'callback' => [$this, 'revoke_endpoint'],
+            'permission_callback' => '__return_true',
+            'args' => [
+                'token' => [
+                    'required' => true,
+                    'type' => 'string'
+                ],
+                'token_type_hint' => [
+                    'required' => false,
+                    'type' => 'string',
+                    'enum' => ['access_token', 'refresh_token']
+                ]
+            ]
+        ]);
+
+        register_rest_route('oauth2/v1', '/scopes', [
+            'methods' => 'GET',
+            'callback' => [$this, 'scopes_endpoint'],
+            'permission_callback' => '__return_true'
+        ]);
+
         // Add CORS support
         add_action('rest_api_init', [$this, 'add_cors_support']);
     }
@@ -1042,6 +1065,39 @@ class Auth_OAuth2 {
         wp_auth_oauth2_delete_cookie(self::OAUTH2_REFRESH_COOKIE_NAME, '/wp-json/oauth2/v1/');
 
         return wp_auth_oauth2_success_response([], 'Logout successful', 200);
+    }
+
+    public function revoke_endpoint(WP_REST_Request $request) {
+        wp_auth_oauth2_maybe_add_cors_headers();
+
+        $token = $request->get_param('token');
+        $token_type_hint = $request->get_param('token_type_hint');
+
+        if (empty($token)) {
+            return wp_auth_oauth2_error_response(
+                'invalid_request',
+                'Token parameter is required',
+                400
+            );
+        }
+
+        // Attempt to revoke the token
+        if ($token_type_hint === 'refresh_token' || empty($token_type_hint)) {
+            $this->revoke_oauth2_refresh_token($token);
+        }
+
+        // Also try to revoke as access token (transient)
+        $this->revoke_token($token);
+
+        return wp_auth_oauth2_success_response([], 'Token revoked successfully', 200);
+    }
+
+    public function scopes_endpoint(WP_REST_Request $request) {
+        wp_auth_oauth2_maybe_add_cors_headers();
+
+        $scopes = wp_auth_oauth2_get_available_scopes();
+
+        return wp_auth_oauth2_success_response($scopes, 'Available scopes retrieved successfully', 200);
     }
 
     public function authenticate_bearer(string $token) {
