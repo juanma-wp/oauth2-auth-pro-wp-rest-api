@@ -213,14 +213,22 @@ class Auth_OAuth2 {
         }
 
         if (!is_user_logged_in()) {
-            $login_url = wp_login_url(add_query_arg([
+            $query_args = [
                 'oauth2_authorize' => '1',
                 'response_type' => $response_type,
                 'client_id' => $client_id,
                 'redirect_uri' => $redirect_uri,
                 'state' => $state,
                 'scope' => $requested_scope
-            ], home_url()));
+            ];
+
+            // Preserve PKCE parameters if provided
+            if (!empty($code_challenge)) {
+                $query_args['code_challenge'] = $code_challenge;
+                $query_args['code_challenge_method'] = $code_challenge_method;
+            }
+
+            $login_url = wp_login_url(add_query_arg($query_args, home_url()));
 
             wp_redirect($login_url);
             exit;
