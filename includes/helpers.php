@@ -21,6 +21,9 @@ use WPRestAuth\AuthToolkit\OAuth2\Scope;
 
 /**
  * Generate a secure random token
+ *
+ * @param int $length Token length in bytes.
+ * @return string Generated token.
  */
 function wp_auth_oauth2_generate_token( int $length = 64 ): string {
 	return Generator::generate( $length );
@@ -28,6 +31,10 @@ function wp_auth_oauth2_generate_token( int $length = 64 ): string {
 
 /**
  * Hash a token for database storage
+ *
+ * @param string $token  Token to hash.
+ * @param string $secret Secret key for hashing.
+ * @return string Hashed token.
  */
 function wp_auth_oauth2_hash_token( string $token, string $secret ): string {
 	return Hasher::make( $token, $secret );
@@ -49,6 +56,14 @@ function wp_auth_oauth2_get_user_agent(): string {
 
 /**
  * Set HTTPOnly cookie
+ *
+ * @param string    $name     Cookie name.
+ * @param string    $value    Cookie value.
+ * @param int       $expires  Expiration timestamp.
+ * @param string    $path     Cookie path.
+ * @param bool      $httponly HTTPOnly flag.
+ * @param bool|null $secure   Secure flag (null = auto-detect).
+ * @return bool True on success.
  */
 function wp_auth_oauth2_set_cookie(
 	string $name,
@@ -64,7 +79,7 @@ function wp_auth_oauth2_set_cookie(
 		'httponly' => $httponly,
 	);
 
-	if ( $secure !== null ) {
+	if ( null !== $secure ) {
 		$options['secure'] = $secure;
 	}
 
@@ -73,6 +88,10 @@ function wp_auth_oauth2_set_cookie(
 
 /**
  * Delete cookie
+ *
+ * @param string $name Cookie name.
+ * @param string $path Cookie path.
+ * @return bool True on success.
  */
 function wp_auth_oauth2_delete_cookie( string $name, string $path = '/' ): bool {
 	return Cookie::delete( $name, $path );
@@ -80,6 +99,9 @@ function wp_auth_oauth2_delete_cookie( string $name, string $path = '/' ): bool 
 
 /**
  * Check if origin is allowed for CORS
+ *
+ * @param string $origin Origin to check.
+ * @return bool True if allowed.
  */
 function wp_auth_oauth2_is_valid_origin( string $origin ): bool {
 	$general_settings = WP_REST_Auth_OAuth2_Admin_Settings::get_general_settings();
@@ -97,8 +119,11 @@ function wp_auth_oauth2_is_valid_origin( string $origin ): bool {
 
 /**
  * Add CORS headers if needed
+ *
+ * @return void
  */
 function wp_auth_oauth2_maybe_add_cors_headers(): void {
+	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 	$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
 	if ( $origin && wp_auth_oauth2_is_valid_origin( $origin ) ) {
@@ -108,7 +133,8 @@ function wp_auth_oauth2_maybe_add_cors_headers(): void {
 		header( 'Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With, X-WP-Nonce' );
 		header( 'Access-Control-Max-Age: 86400' );
 
-		if ( $_SERVER['REQUEST_METHOD'] === 'OPTIONS' ) {
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated
+		if ( isset( $_SERVER['REQUEST_METHOD'] ) && 'OPTIONS' === $_SERVER['REQUEST_METHOD'] ) {
 			http_response_code( 200 );
 			exit;
 		}
@@ -117,6 +143,11 @@ function wp_auth_oauth2_maybe_add_cors_headers(): void {
 
 /**
  * Create success response
+ *
+ * @param array       $data    Response data.
+ * @param string|null $message Optional message.
+ * @param int         $status  HTTP status code.
+ * @return WP_REST_Response Response object.
  */
 function wp_auth_oauth2_success_response( array $data = array(), ?string $message = null, int $status = 200 ): WP_REST_Response {
 	$response_data = array(
@@ -133,6 +164,12 @@ function wp_auth_oauth2_success_response( array $data = array(), ?string $messag
 
 /**
  * Create error response
+ *
+ * @param string $code    Error code.
+ * @param string $message Error message.
+ * @param int    $status  HTTP status code.
+ * @param array  $data    Additional error data.
+ * @return WP_Error Error object.
  */
 function wp_auth_oauth2_error_response( string $code, string $message, int $status = 400, array $data = array() ): WP_Error {
 	return new WP_Error( $code, $message, array_merge( array( 'status' => $status ), $data ) );
@@ -140,6 +177,10 @@ function wp_auth_oauth2_error_response( string $code, string $message, int $stat
 
 /**
  * Format user data for API responses
+ *
+ * @param WP_User $user              User object.
+ * @param bool    $include_sensitive Include sensitive data.
+ * @return array Formatted user data.
  */
 function wp_auth_oauth2_format_user_data( WP_User $user, bool $include_sensitive = false ): array {
 	$user_data = array(
@@ -167,14 +208,20 @@ function wp_auth_oauth2_format_user_data( WP_User $user, bool $include_sensitive
 
 /**
  * Validate OAuth2 scope format
+ *
+ * @param string $scope Scope to validate.
+ * @return bool True if valid.
  */
 function wp_auth_oauth2_validate_scope( string $scope ): bool {
-	// OAuth2 scope must be alphanumeric with underscores, colons, and dots
+	// OAuth2 scope must be alphanumeric with underscores, colons, and dots.
 	return preg_match( '/^[a-zA-Z0-9_:.-]+$/', $scope );
 }
 
 /**
  * Parse OAuth2 scopes from string
+ *
+ * @param string $scope_string Space-separated scopes.
+ * @return array Array of valid scopes.
  */
 function wp_auth_oauth2_parse_scopes( string $scope_string ): array {
 	$scopes = array_filter( array_map( 'trim', explode( ' ', $scope_string ) ) );
@@ -204,33 +251,41 @@ function wp_auth_oauth2_generate_refresh_token(): string {
 
 /**
  * Sanitize OAuth2 client ID
+ *
+ * @param string $client_id Client ID to sanitize.
+ * @return string Sanitized client ID.
  */
 function wp_auth_oauth2_sanitize_client_id( string $client_id ): string {
-	// Client ID should be alphanumeric with dashes and underscores
+	// Client ID should be alphanumeric with dashes and underscores.
 	return sanitize_key( $client_id );
 }
 
 /**
  * Validate redirect URI
+ *
+ * @param string $uri URI to validate.
+ * @return bool True if valid.
  */
 function wp_auth_oauth2_validate_redirect_uri( string $uri ): bool {
-	$parsed = parse_url( $uri );
+	$parsed = wp_parse_url( $uri );
 
 	if ( ! $parsed || ! isset( $parsed['scheme'] ) || ! isset( $parsed['host'] ) ) {
 		return false;
 	}
 
-	// Allow http for localhost development
-	if ( $parsed['host'] === 'localhost' || strpos( $parsed['host'], '127.0.0.1' ) === 0 ) {
-		return in_array( $parsed['scheme'], array( 'http', 'https' ) );
+	// Allow http for localhost development.
+	if ( 'localhost' === $parsed['host'] || 0 === strpos( $parsed['host'], '127.0.0.1' ) ) {
+		return in_array( $parsed['scheme'], array( 'http', 'https' ), true );
 	}
 
-	// Production should use https
-	return $parsed['scheme'] === 'https';
+	// Production should use https.
+	return 'https' === $parsed['scheme'];
 }
 
 /**
  * Get available OAuth2 scopes with descriptions
+ *
+ * @return array Array of scopes with descriptions.
  */
 function wp_auth_oauth2_get_available_scopes(): array {
 	$scopes = array(
@@ -252,6 +307,10 @@ function wp_auth_oauth2_get_available_scopes(): array {
 
 /**
  * Check if user can access specific OAuth2 scope
+ *
+ * @param WP_User $user  User object.
+ * @param string  $scope Scope to check.
+ * @return bool True if user can access scope.
  */
 function wp_auth_oauth2_user_can_access_scope( WP_User $user, string $scope ): bool {
 	$scope_capabilities = array(
@@ -279,19 +338,26 @@ function wp_auth_oauth2_user_can_access_scope( WP_User $user, string $scope ): b
 
 /**
  * Log debug information for OAuth2
+ *
+ * @param string $message Debug message.
+ * @param mixed  $data    Optional data to log.
+ * @return void
  */
 function wp_auth_oauth2_debug_log( string $message, $data = null ): void {
 	if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 		$log_message = 'OAuth2 Debug: ' . $message;
-		if ( $data !== null ) {
-			$log_message .= ' - ' . json_encode( $data );
+		if ( null !== $data ) {
+			$log_message .= ' - ' . wp_json_encode( $data );
 		}
-		error_log( $log_message );
+		error_log( $log_message ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 	}
 }
 
 /**
  * Get OAuth2 error descriptions
+ *
+ * @param string $error_code Error code.
+ * @return string Error description.
  */
 function wp_auth_oauth2_get_error_description( string $error_code ): string {
 	$errors = array(
@@ -313,6 +379,12 @@ function wp_auth_oauth2_get_error_description( string $error_code ): string {
 
 /**
  * Create OAuth2 error response with proper format
+ *
+ * @param string      $error       Error code.
+ * @param string|null $description Error description.
+ * @param string|null $uri         Error URI.
+ * @param string|null $state       State parameter.
+ * @return array Error response array.
  */
 function wp_auth_oauth2_create_error_response( string $error, ?string $description = null, ?string $uri = null, ?string $state = null ): array {
 	$response = array( 'error' => $error );
@@ -336,6 +408,9 @@ function wp_auth_oauth2_create_error_response( string $error, ?string $descripti
 
 /**
  * Validate PKCE code challenge method
+ *
+ * @param string $method Challenge method to validate.
+ * @return bool True if valid.
  */
 function wp_auth_oauth2_validate_code_challenge_method( string $method ): bool {
 	return Pkce::validateMethod( $method );
@@ -344,9 +419,9 @@ function wp_auth_oauth2_validate_code_challenge_method( string $method ): bool {
 /**
  * Generate PKCE code challenge from verifier
  *
- * @param string $code_verifier The code verifier (43-128 characters)
- * @param string $method The challenge method ('S256' or 'plain')
- * @return string|false The code challenge, or false on error
+ * @param string $code_verifier The code verifier (43-128 characters).
+ * @param string $method        The challenge method ('S256' or 'plain').
+ * @return string|false The code challenge, or false on error.
  */
 function wp_auth_oauth2_generate_code_challenge( string $code_verifier, string $method = 'S256' ) {
 	try {
@@ -359,6 +434,9 @@ function wp_auth_oauth2_generate_code_challenge( string $code_verifier, string $
 /**
  * Validate PKCE code verifier format
  * Must be 43-128 characters of [A-Z] / [a-z] / [0-9] / "-" / "." / "_" / "~"
+ *
+ * @param string $code_verifier Code verifier to validate.
+ * @return bool True if valid.
  */
 function wp_auth_oauth2_validate_code_verifier( string $code_verifier ): bool {
 	return Pkce::validateVerifier( $code_verifier );
@@ -367,10 +445,10 @@ function wp_auth_oauth2_validate_code_verifier( string $code_verifier ): bool {
 /**
  * Verify PKCE code challenge matches verifier
  *
- * @param string $code_verifier The code verifier provided by client
- * @param string $code_challenge The stored code challenge
- * @param string $method The challenge method used ('S256' or 'plain')
- * @return bool True if verification succeeds
+ * @param string $code_verifier  The code verifier provided by client.
+ * @param string $code_challenge The stored code challenge.
+ * @param string $method         The challenge method used ('S256' or 'plain').
+ * @return bool True if verification succeeds.
  */
 function wp_auth_oauth2_verify_code_challenge( string $code_verifier, string $code_challenge, string $method = 'S256' ): bool {
 	return Pkce::verify( $code_verifier, $code_challenge, $method );
@@ -382,7 +460,7 @@ function wp_auth_oauth2_verify_code_challenge( string $code_verifier, string $co
  */
 add_filter(
 	'wp_rest_auth_cookie_samesite',
-	function( $samesite ) {
+	function ( $samesite ) {
 		if ( ! class_exists( 'OAuth2_Cookie_Config' ) ) {
 			return $samesite;
 		}
@@ -396,7 +474,7 @@ add_filter(
 
 add_filter(
 	'wp_rest_auth_cookie_secure',
-	function( $secure ) {
+	function ( $secure ) {
 		if ( ! class_exists( 'OAuth2_Cookie_Config' ) ) {
 			return $secure;
 		}
@@ -410,7 +488,7 @@ add_filter(
 
 add_filter(
 	'wp_rest_auth_cookie_path',
-	function( $path ) {
+	function ( $path ) {
 		if ( ! class_exists( 'OAuth2_Cookie_Config' ) ) {
 			return $path;
 		}
@@ -424,7 +502,7 @@ add_filter(
 
 add_filter(
 	'wp_rest_auth_cookie_domain',
-	function( $domain ) {
+	function ( $domain ) {
 		if ( ! class_exists( 'OAuth2_Cookie_Config' ) ) {
 			return $domain;
 		}

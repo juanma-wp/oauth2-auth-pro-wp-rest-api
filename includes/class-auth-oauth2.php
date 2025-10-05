@@ -803,7 +803,7 @@ class Auth_OAuth2 {
 	public function add_cors_support(): void {
 		add_filter(
 			'rest_pre_serve_request',
-			function( $served, $result, $request, $server ) {
+			function ( $served, $result, $request, $server ) {
 				wp_auth_oauth2_maybe_add_cors_headers();
 				return $served;
 			},
