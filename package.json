@@ -17,7 +17,7 @@
     "composer:update": "wp-env run tests-cli --env-cwd=wp-content/plugins/wp-rest-auth-oauth2 bash -lc 'composer update --no-interaction --prefer-dist'",
     "test:setup": "wp-env run tests-cli bash -c 'wp plugin activate wp-rest-auth-oauth2 2>/dev/null || true'",
     "test": "npm run test:setup && npm run test-unit && npm run test-integration",
-    "test-unit": "npm run test:setup && wp-env run tests-cli --env-cwd=wp-content/plugins/wp-rest-auth-oauth2 vendor/bin/phpunit --testsuite unit --testdox",
+    "test-unit": "npm run test:setup && wp-env run tests-cli --env-cwd=wp-content/plugins/wp-rest-auth-oauth2 vendor/bin/phpunit -c phpunit-unit.xml --testdox",
     "test-integration": "npm run test:setup && wp-env run tests-cli --env-cwd=wp-content/plugins/wp-rest-auth-oauth2 vendor/bin/phpunit --testsuite integration --testdox"
   },
   "repository": {
