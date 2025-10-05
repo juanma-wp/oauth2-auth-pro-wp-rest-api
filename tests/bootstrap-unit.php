@@ -39,15 +39,27 @@ if ( ! function_exists( 'current_time' ) ) {
 	}
 }
 
-if ( ! function_exists( 'wp_auth_oauth2_generate_refresh_token' ) ) {
-	function wp_auth_oauth2_generate_refresh_token() {
-		return 'refresh_' . bin2hex( random_bytes( 32 ) );
+if ( ! function_exists( 'add_filter' ) ) {
+	function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
+		// Mock implementation - just return true
+		return true;
 	}
 }
 
-if ( ! function_exists( 'wp_auth_oauth2_validate_scope' ) ) {
-	function wp_auth_oauth2_validate_scope( $scope ) {
-		$valid_scopes = array( 'read', 'write', 'edit', 'delete', 'profile' );
-		return in_array( $scope, $valid_scopes, true );
+if ( ! function_exists( 'apply_filters' ) ) {
+	function apply_filters( $hook, $value, ...$args ) {
+		// Mock implementation - just return the value unchanged
+		return $value;
 	}
 }
+
+if ( ! function_exists( 'sanitize_key' ) ) {
+	function sanitize_key( $key ) {
+		// Mock implementation - lowercase and replace non-alphanumeric with dashes
+		return strtolower( preg_replace( '/[^a-zA-Z0-9_\-]/', '', $key ) );
+	}
+}
+
+// Note: OAuth2-specific functions like wp_auth_oauth2_generate_refresh_token()
+// and wp_auth_oauth2_validate_scope() are defined in includes/helpers.php
+// which will be loaded by the unit tests themselves when needed.
