@@ -44,13 +44,8 @@ jobs:
       - name: Start wp-env
         run: npm run env:start
 
-      - name: Wait for WordPress to be ready
-        run: |
-          timeout 120 bash -c 'until curl -s http://localhost:8888 > /dev/null; do sleep 2; done'
-          echo "WordPress is ready!"
-
-      - name: Run integration tests
-        run: npm run test-integration
+      - name: Run full test suite via wp-env
+        run: npm test
 
       - name: Stop wp-env
         if: always()
