@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<ruleset name="WordPress-OAuth2">
+	<description>WordPress Coding Standards for OAuth2 plugin</description>
+
+	<!-- Files to check -->
+	<file>.</file>
+
+	<!-- Use WordPress coding standard -->
+	<rule ref="WordPress">
+		<!-- Exclude problematic sniffs that cause PHP 8+ issues -->
+		<exclude name="WordPress.WP.I18n"/>
+		<exclude name="WordPress.NamingConventions.PrefixAllGlobals"/>
+
+		<!-- Allow usage required by OAuth2 (RFC 6749) and gated debug logging -->
+		<exclude name="WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode"/>
+		<exclude name="WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode"/>
+		<exclude name="WordPress.PHP.DevelopmentFunctions.error_log_error_log"/>
+
+		<!-- Suppress warnings for required method signatures and REST filters (unused params) -->
+		<exclude name="Generic.CodeAnalysis.UnusedFunctionParameter.Found"/>
+		<exclude name="Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed"/>
+
+		<!-- Suppress direct DB query warnings for this plugin's managed token storage layer -->
+		<exclude name="WordPress.DB.DirectDatabaseQuery.DirectQuery"/>
+		<exclude name="WordPress.DB.DirectDatabaseQuery.NoCaching"/>
+
+		<!-- Suppress nonce recommendation warnings for admin settings handlers (handled differently) -->
+		<exclude name="WordPress.Security.NonceVerification.Recommended"/>
+
+		<!-- File comment exclusions from reference -->
+		<exclude name="Squiz.Commenting.FileComment.MissingPackageTag"/>
+		<exclude name="Squiz.Commenting.FileComment.SpacingAfterOpen"/>
+
+		<!-- Allow test files to use different naming conventions -->
+		<exclude name="WordPress.Files.FileName"/>
+	</rule>
+
+	<!-- Exclude vendor, node_modules and tests -->
+	<exclude-pattern>vendor/*</exclude-pattern>
+	<exclude-pattern>node_modules/*</exclude-pattern>
+	<exclude-pattern>tests/*</exclude-pattern>
+
+	<!-- Check PHP files -->
+	<arg name="extensions" value="php"/>
+
+	<!-- WordPress and PHP version configuration -->
+	<config name="minimum_supported_wp_version" value="5.0"/>
+	<config name="testVersion" value="7.4-"/>
+
+	<!-- Show progress -->
+	<arg value="ps"/>
+
+	<!-- Use colors -->
+	<arg name="colors"/>
+</ruleset>
