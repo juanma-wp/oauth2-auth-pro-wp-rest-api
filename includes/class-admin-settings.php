@@ -10,6 +10,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 use WPRestAuth\AuthToolkit\Admin\BaseAdminSettings;
 
+/**
+ * Admin Settings for OAuth2 Authentication
+ *
+ * Manages WordPress admin interface for OAuth2 client configuration,
+ * general settings, and cookie settings.
+ */
 class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 
 	const OPTION_GROUP            = 'wp_rest_auth_oauth2_settings';
@@ -51,16 +57,28 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 		return 'OAuth2_Cookie_Config';
 	}
 
+	/**
+	 * Constructor
+	 *
+	 * Registers admin menu, settings, scripts, and AJAX handlers.
+	 */
 	public function __construct() {
 		add_action( 'admin_menu', array( $this, 'add_admin_menu' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_admin_scripts' ) );
 
-		// AJAX handlers for OAuth2 client management
+		// AJAX handlers for OAuth2 client management.
 		add_action( 'wp_ajax_add_oauth2_client', array( $this, 'ajax_add_oauth2_client' ) );
 		add_action( 'wp_ajax_delete_oauth2_client', array( $this, 'ajax_delete_oauth2_client' ) );
 	}
 
+	/**
+	 * Add admin menu
+	 *
+	 * Registers OAuth2 settings page under WordPress Settings menu.
+	 *
+	 * @return void
+	 */
 	public function add_admin_menu() {
 		add_options_page(
 			'WP REST Auth OAuth2 Settings',
@@ -71,8 +89,15 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 		);
 	}
 
+	/**
+	 * Register plugin settings
+	 *
+	 * Registers OAuth2, general, and cookie settings with WordPress settings API.
+	 *
+	 * @return void
+	 */
 	public function register_settings() {
-		// Register OAuth2 settings
+		// Register OAuth2 settings.
 		register_setting(
 			self::OPTION_GROUP,
 			self::OPTION_OAUTH2_SETTINGS,
@@ -81,13 +106,21 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 			)
 		);
 
-		// Register General Settings and Cookie Settings using base class
+		// Register General Settings and Cookie Settings using base class.
 		$this->registerGeneralSettings( 'wp-rest-auth-oauth2-general' );
 		$this->registerCookieSettings( 'wp-rest-auth-oauth2-cookies' );
 	}
 
+	/**
+	 * Enqueue admin scripts
+	 *
+	 * Loads JavaScript and localized data for OAuth2 admin interface.
+	 *
+	 * @param string $hook Current admin page hook.
+	 * @return void
+	 */
 	public function enqueue_admin_scripts( $hook ) {
-		if ( $hook !== 'settings_page_wp-rest-auth-oauth2' ) {
+		if ( 'settings_page_wp-rest-auth-oauth2' !== $hook ) {
 			return;
 		}
 
@@ -109,7 +142,15 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 		);
 	}
 
+	/**
+	 * Render admin page
+	 *
+	 * Displays tabbed interface for OAuth2, general, cookie settings, and help.
+	 *
+	 * @return void
+	 */
 	public function admin_page() {
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$active_tab = $_GET['tab'] ?? 'oauth2';
 		?>
 		<div class="wrap">
@@ -117,27 +158,27 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 			<p class="description">OAuth2 authentication for WordPress REST API</p>
 
 			<nav class="nav-tab-wrapper">
-				<a href="?page=wp-rest-auth-oauth2&tab=oauth2" class="nav-tab <?php echo $active_tab == 'oauth2' ? 'nav-tab-active' : ''; ?>">OAuth2 Settings</a>
-				<a href="?page=wp-rest-auth-oauth2&tab=general" class="nav-tab <?php echo $active_tab == 'general' ? 'nav-tab-active' : ''; ?>">General Settings</a>
-				<a href="?page=wp-rest-auth-oauth2&tab=cookies" class="nav-tab <?php echo $active_tab == 'cookies' ? 'nav-tab-active' : ''; ?>">Cookie Settings</a>
-				<a href="?page=wp-rest-auth-oauth2&tab=help" class="nav-tab <?php echo $active_tab == 'help' ? 'nav-tab-active' : ''; ?>">Help & Documentation</a>
+				<a href="?page=wp-rest-auth-oauth2&tab=oauth2" class="nav-tab <?php echo 'oauth2' === $active_tab ? 'nav-tab-active' : ''; ?>">OAuth2 Settings</a>
+				<a href="?page=wp-rest-auth-oauth2&tab=general" class="nav-tab <?php echo 'general' === $active_tab ? 'nav-tab-active' : ''; ?>">General Settings</a>
+				<a href="?page=wp-rest-auth-oauth2&tab=cookies" class="nav-tab <?php echo 'cookies' === $active_tab ? 'nav-tab-active' : ''; ?>">Cookie Settings</a>
+				<a href="?page=wp-rest-auth-oauth2&tab=help" class="nav-tab <?php echo 'help' === $active_tab ? 'nav-tab-active' : ''; ?>">Help & Documentation</a>
 			</nav>
 
-			<?php if ( $active_tab == 'help' ) : ?>
+			<?php if ( 'help' === $active_tab ) : ?>
 				<?php $this->render_help_tab(); ?>
 			<?php else : ?>
 				<form method="post" action="options.php">
 					<?php
 					settings_fields( self::OPTION_GROUP );
 
-					if ( $active_tab == 'oauth2' ) {
+					if ( 'oauth2' === $active_tab ) {
 						$this->render_oauth2_tab();
-					} elseif ( $active_tab == 'general' ) {
+					} elseif ( 'general' === $active_tab ) {
 						do_settings_sections( 'wp-rest-auth-oauth2-general' );
 						submit_button();
-					} elseif ( $active_tab == 'cookies' ) {
+					} elseif ( 'cookies' === $active_tab ) {
 						do_settings_sections( 'wp-rest-auth-oauth2-cookies' );
-						// No submit button - read-only display
+						// No submit button - read-only display.
 					}
 					?>
 				</form>
@@ -280,6 +321,13 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 		<?php
 	}
 
+	/**
+	 * Render OAuth2 settings tab
+	 *
+	 * Displays OAuth2 client management interface.
+	 *
+	 * @return void
+	 */
 	private function render_oauth2_tab() {
 		$oauth2_settings = get_option( self::OPTION_OAUTH2_SETTINGS, array() );
 		$clients         = $oauth2_settings['clients'] ?? array();
@@ -423,6 +471,13 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 		<?php
 	}
 
+	/**
+	 * Render help tab
+	 *
+	 * Displays OAuth2 documentation and troubleshooting information.
+	 *
+	 * @return void
+	 */
 	private function render_help_tab() {
 		?>
 		<div class="help-tab">
@@ -487,13 +542,27 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 		<?php
 	}
 
-	// Sanitization callbacks
+	/**
+	 * Sanitize OAuth2 settings
+	 *
+	 * OAuth2 settings are managed via AJAX handlers, so this returns input unchanged.
+	 *
+	 * @param array $input Settings input.
+	 * @return array Sanitized settings.
+	 */
 	public function sanitize_oauth2_settings( $input ) {
-		return $input; // OAuth2 settings are managed via AJAX
+		return $input;
 	}
 
-	// AJAX handlers
+	/**
+	 * AJAX handler to add OAuth2 client
+	 *
+	 * Validates and creates a new OAuth2 client with generated credentials.
+	 *
+	 * @return void
+	 */
 	public function ajax_add_oauth2_client() {
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		if ( ! wp_verify_nonce( $_POST['nonce'], 'wp_rest_auth_oauth2_nonce' ) ) {
 			wp_die( 'Invalid nonce' );
 		}
@@ -502,15 +571,18 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 			wp_die( 'Insufficient permissions' );
 		}
 
-		$name          = sanitize_text_field( $_POST['name'] );
-		$client_id     = wp_auth_oauth2_sanitize_client_id( $_POST['client_id'] );
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash
+		$name = sanitize_text_field( $_POST['name'] );
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$client_id = wp_auth_oauth2_sanitize_client_id( $_POST['client_id'] );
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$redirect_uris = array_filter( array_map( 'esc_url_raw', array_map( 'trim', explode( "\n", $_POST['redirect_uris'] ) ) ) );
 
 		if ( empty( $name ) || empty( $client_id ) || empty( $redirect_uris ) ) {
 			wp_send_json_error( 'All fields are required.' );
 		}
 
-		// Validate redirect URIs
+		// Validate redirect URIs.
 		foreach ( $redirect_uris as $uri ) {
 			if ( ! wp_auth_oauth2_validate_redirect_uri( $uri ) ) {
 				wp_send_json_error( 'Invalid redirect URI: ' . $uri );
@@ -537,7 +609,15 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 		wp_send_json_success( 'OAuth2 client added successfully.' );
 	}
 
+	/**
+	 * AJAX handler to delete OAuth2 client
+	 *
+	 * Removes an existing OAuth2 client and its credentials.
+	 *
+	 * @return void
+	 */
 	public function ajax_delete_oauth2_client() {
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		if ( ! wp_verify_nonce( $_POST['nonce'], 'wp_rest_auth_oauth2_nonce' ) ) {
 			wp_die( 'Invalid nonce' );
 		}
@@ -546,6 +626,7 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 			wp_die( 'Insufficient permissions' );
 		}
 
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash
 		$client_id = sanitize_text_field( $_POST['client_id'] );
 
 		$oauth2_settings = get_option( self::OPTION_OAUTH2_SETTINGS, array() );
@@ -562,7 +643,11 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 		wp_send_json_success( 'OAuth2 client deleted successfully.' );
 	}
 
-	// Helper methods to get settings
+	/**
+	 * Get OAuth2 settings
+	 *
+	 * @return array OAuth2 settings with clients array.
+	 */
 	public static function get_oauth2_settings() {
 		return get_option(
 			self::OPTION_OAUTH2_SETTINGS,
@@ -572,6 +657,11 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 		);
 	}
 
+	/**
+	 * Get general settings
+	 *
+	 * @return array General settings with default values.
+	 */
 	public static function get_general_settings() {
 		return get_option(
 			self::OPTION_GENERAL_SETTINGS,

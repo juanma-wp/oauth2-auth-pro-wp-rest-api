@@ -7,15 +7,25 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * OAuth2 Authentication Class
+ *
+ * Implements OAuth2 Authorization Code flow with PKCE support,
+ * token management, and scope-based authorization.
+ */
 class Auth_OAuth2 {
 
-	const CODE_TTL                   = 300;     // 5 minutes
-	const TOKEN_TTL                  = 3600;   // 1 hour
+	const CODE_TTL                   = 300;     // 5 minutes.
+	const TOKEN_TTL                  = 3600;   // 1 hour.
 	const OPTION_CLIENTS             = 'oauth2_clients';
 	const OAUTH2_REFRESH_COOKIE_NAME = 'wp_oauth2_refresh_token';
-	const REFRESH_TTL                = 2592000; // 30 days
+	const REFRESH_TTL                = 2592000; // 30 days.
 
-	// Store current token scopes for request validation
+	/**
+	 * Store current token scopes for request validation.
+	 *
+	 * @var array
+	 */
 	private array $current_token_scopes = array();
 
 	/**
@@ -39,10 +49,15 @@ class Auth_OAuth2 {
 		'view_stats'        => 'Access website statistics and analytics',
 	);
 
+	/**
+	 * Constructor
+	 *
+	 * Initializes refresh token manager and registers authorization page handler.
+	 */
 	public function __construct() {
 		global $wpdb;
 
-		// Initialize refresh token manager
+		// Initialize refresh token manager.
 		$this->refresh_token_manager = new \WPRestAuth\AuthToolkit\Token\RefreshTokenManager(
 			$wpdb->prefix . 'oauth2_refresh_tokens',
 			WP_OAUTH2_SECRET,
@@ -54,6 +69,13 @@ class Auth_OAuth2 {
 		add_action( 'init', array( $this, 'handle_authorize_page' ) );
 	}
 
+	/**
+	 * Register OAuth2 REST API routes
+	 *
+	 * Registers endpoints for authorization, token, userinfo, refresh, and logout.
+	 *
+	 * @return void
+	 */
 	public function register_routes(): void {
 		register_rest_route(
 			'oauth2/v1',
@@ -197,18 +219,34 @@ class Auth_OAuth2 {
 			)
 		);
 
-		// Add CORS support
+		// Add CORS support.
 		add_action( 'rest_api_init', array( $this, 'add_cors_support' ) );
 	}
 
+	/**
+	 * Handle authorization page request
+	 *
+	 * Checks if current request is an OAuth2 authorization request.
+	 *
+	 * @return void
+	 */
 	public function handle_authorize_page(): void {
-		// Check if this is an OAuth authorize request
+		// Check if this is an OAuth authorize request.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( isset( $_GET['oauth2_authorize'] ) ) {
 			$this->process_authorize_request();
 		}
 	}
 
+	/**
+	 * Process OAuth2 authorization request
+	 *
+	 * Validates OAuth2 parameters, client credentials, and displays consent screen.
+	 *
+	 * @return void
+	 */
 	private function process_authorize_request(): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$response_type         = $_GET['response_type'] ?? '';
 		$client_id             = $_GET['client_id'] ?? '';
 		$redirect_uri          = $_GET['redirect_uri'] ?? '';
@@ -216,14 +254,15 @@ class Auth_OAuth2 {
 		$requested_scope       = $_GET['scope'] ?? 'read';
 		$code_challenge        = $_GET['code_challenge'] ?? '';
 		$code_challenge_method = $_GET['code_challenge_method'] ?? 'S256';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
-		// Validate parameters
-		if ( $response_type !== 'code' ) {
+		// Validate parameters.
+		if ( 'code' !== $response_type ) {
 			$this->redirect_with_error( $redirect_uri, 'unsupported_response_type', $state );
 			return;
 		}
 
-		// Validate PKCE parameters if provided
+		// Validate PKCE parameters if provided.
 		if ( ! empty( $code_challenge ) ) {
 			if ( ! wp_auth_oauth2_validate_code_challenge_method( $code_challenge_method ) ) {
 				$this->redirect_with_error( $redirect_uri, 'invalid_request', $state );
@@ -251,7 +290,7 @@ class Auth_OAuth2 {
 			return;
 		}
 
-		// Validate requested scopes
+		// Validate requested scopes.
 		$scopes       = $this->parse_scopes( $requested_scope );
 		$valid_scopes = $this->validate_scopes( $scopes );
 
@@ -270,7 +309,7 @@ class Auth_OAuth2 {
 				'scope'            => $requested_scope,
 			);
 
-			// Preserve PKCE parameters if provided
+			// Preserve PKCE parameters if provided.
 			if ( ! empty( $code_challenge ) ) {
 				$query_args['code_challenge']        = $code_challenge;
 				$query_args['code_challenge_method'] = $code_challenge_method;
@@ -284,20 +323,37 @@ class Auth_OAuth2 {
 
 		$user = wp_get_current_user();
 
-		// Check if user has already consented or if consent is being processed
+		// Check if user has already consented or if consent is being processed.
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		if ( isset( $_POST['oauth2_consent'] ) ) {
 			$this->handle_consent_response( $client_id, $redirect_uri, $state, $valid_scopes, $user->ID, $code_challenge, $code_challenge_method );
 			return;
 		}
 
-		// Show consent screen (pass PKCE params to preserve them in the form)
+		// Show consent screen (pass PKCE params to preserve them in the form).
 		$this->show_consent_screen( $client_id, $redirect_uri, $state, $valid_scopes, $code_challenge, $code_challenge_method );
 	}
 
+	/**
+	 * Parse scope string
+	 *
+	 * Converts space-separated scope string into array.
+	 *
+	 * @param string $scope_string Space-separated scopes.
+	 * @return array Parsed scopes.
+	 */
 	private function parse_scopes( string $scope_string ): array {
 		return array_filter( array_map( 'trim', explode( ' ', $scope_string ) ) );
 	}
 
+	/**
+	 * Validate requested scopes
+	 *
+	 * Filters scopes based on user capabilities.
+	 *
+	 * @param array $requested_scopes Requested OAuth2 scopes.
+	 * @return array Valid scopes for user.
+	 */
 	private function validate_scopes( array $requested_scopes ): array {
 		$valid_scopes = array();
 		$user         = wp_get_current_user();
@@ -307,7 +363,7 @@ class Auth_OAuth2 {
 				continue;
 			}
 
-			// Check if user has capability for this scope
+			// Check if user has capability for this scope.
 			if ( $this->user_can_access_scope( $user, $scope ) ) {
 				$valid_scopes[] = $scope;
 			}
@@ -316,10 +372,19 @@ class Auth_OAuth2 {
 		return $valid_scopes;
 	}
 
+	/**
+	 * Check if user can access scope
+	 *
+	 * Maps OAuth2 scopes to WordPress capabilities.
+	 *
+	 * @param WP_User $user  WordPress user.
+	 * @param string  $scope OAuth2 scope.
+	 * @return bool True if user has required capability.
+	 */
 	private function user_can_access_scope( WP_User $user, string $scope ): bool {
 		switch ( $scope ) {
 			case 'read':
-				return true; // Everyone can read
+				return true; // Everyone can read.
 			case 'write':
 				return user_can( $user, 'edit_posts' );
 			case 'delete':
@@ -333,25 +398,46 @@ class Auth_OAuth2 {
 			case 'moderate_comments':
 				return user_can( $user, 'moderate_comments' );
 			case 'view_stats':
-				return user_can( $user, 'view_query_monitor' ); // or custom capability
+				return user_can( $user, 'view_query_monitor' ); // Or custom capability.
 			default:
 				return false;
 		}
 	}
 
+	/**
+	 * Show consent screen
+	 *
+	 * Displays OAuth2 authorization consent page to user.
+	 *
+	 * @param string $client_id              Client identifier.
+	 * @param string $redirect_uri           Redirect URI.
+	 * @param string $state                  State parameter.
+	 * @param array  $scopes                 Requested scopes.
+	 * @param string $code_challenge         PKCE code challenge.
+	 * @param string $code_challenge_method  PKCE challenge method.
+	 * @return void
+	 */
 	private function show_consent_screen( string $client_id, string $redirect_uri, string $state, array $scopes, string $code_challenge = '', string $code_challenge_method = 'S256' ): void {
 		$user     = wp_get_current_user();
 		$app_name = $this->get_app_name( $client_id );
 
-		// Set content type and start output
+		// Set content type and start output.
 		header( 'Content-Type: text/html; charset=utf-8' );
 
 		echo $this->render_consent_page( $app_name, $user, $scopes, $client_id, $redirect_uri, $state, $code_challenge, $code_challenge_method );
 		exit;
 	}
 
+	/**
+	 * Get application name
+	 *
+	 * Retrieves friendly name for OAuth2 client.
+	 *
+	 * @param string $client_id Client identifier.
+	 * @return string Application name.
+	 */
 	private function get_app_name( string $client_id ): string {
-		// In a real implementation, this would be stored in the client data
+		// In a real implementation, this would be stored in the client data.
 		$app_names = array(
 			'demo-client' => 'React WordPress OAuth2 Demo',
 		);

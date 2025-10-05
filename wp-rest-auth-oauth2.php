@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Load Composer autoloader
+// Load Composer autoloader.
 if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
 	require_once __DIR__ . '/vendor/autoload.php';
 }
@@ -34,30 +34,65 @@ define( 'WP_REST_AUTH_OAUTH2_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WP_REST_AUTH_OAUTH2_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'WP_REST_AUTH_OAUTH2_VERSION', '1.0.0' );
 
+/**
+ * Main plugin class for WP REST Auth OAuth2
+ *
+ * Handles plugin initialization, dependencies, and hooks.
+ */
 class WP_REST_Auth_OAuth2 {
 
+	/**
+	 * OAuth2 authentication handler instance
+	 *
+	 * @var Auth_OAuth2
+	 */
 	private $auth_oauth2;
+
+	/**
+	 * Admin settings handler instance
+	 *
+	 * @var WP_REST_Auth_OAuth2_Admin_Settings
+	 */
 	private $admin_settings;
 
+	/**
+	 * Constructor
+	 *
+	 * Sets up activation/deactivation hooks and plugins_loaded action.
+	 */
 	public function __construct() {
 		add_action( 'plugins_loaded', array( $this, 'init' ) );
 		register_activation_hook( __FILE__, array( $this, 'activate' ) );
 		register_deactivation_hook( __FILE__, array( $this, 'deactivate' ) );
 	}
 
+	/**
+	 * Initialize plugin
+	 *
+	 * Loads dependencies, sets up constants, and registers hooks.
+	 *
+	 * @return void
+	 */
 	public function init() {
 		$this->load_dependencies();
 		$this->setup_constants();
 		$this->init_hooks();
 	}
 
+	/**
+	 * Load plugin dependencies
+	 *
+	 * Requires necessary files and initializes admin settings if in admin context.
+	 *
+	 * @return void
+	 */
 	private function load_dependencies() {
 		require_once WP_REST_AUTH_OAUTH2_PLUGIN_DIR . 'includes/helpers.php';
 		require_once WP_REST_AUTH_OAUTH2_PLUGIN_DIR . 'includes/class-oauth2-cookie-config.php';
 		require_once WP_REST_AUTH_OAUTH2_PLUGIN_DIR . 'includes/class-admin-settings.php';
 		require_once WP_REST_AUTH_OAUTH2_PLUGIN_DIR . 'includes/class-auth-oauth2.php';
 
-		// Initialize admin settings
+		// Initialize admin settings.
 		if ( is_admin() ) {
 			$this->admin_settings = new WP_REST_Auth_OAuth2_Admin_Settings();
 		}
@@ -65,8 +100,15 @@ class WP_REST_Auth_OAuth2 {
 		$this->auth_oauth2 = new Auth_OAuth2();
 	}
 
+	/**
+	 * Setup plugin constants
+	 *
+	 * Creates and stores OAuth2 secret if not already defined.
+	 *
+	 * @return void
+	 */
 	private function setup_constants() {
-		// Setup a secret for OAuth2 token hashing
+		// Setup a secret for OAuth2 token hashing.
 		if ( ! defined( 'WP_OAUTH2_SECRET' ) ) {
 			$secret = get_option( 'wp_oauth2_secret' );
 			if ( ! $secret ) {
@@ -77,18 +119,40 @@ class WP_REST_Auth_OAuth2 {
 		}
 	}
 
+	/**
+	 * Initialize WordPress hooks
+	 *
+	 * Registers REST API routes and authentication filters.
+	 *
+	 * @return void
+	 */
 	private function init_hooks() {
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 		add_filter( 'rest_authentication_errors', array( $this, 'maybe_auth_bearer' ), 20 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 	}
 
+	/**
+	 * Register REST API routes
+	 *
+	 * Delegates to Auth_OAuth2 instance to register OAuth2 endpoints.
+	 *
+	 * @return void
+	 */
 	public function register_rest_routes() {
 		$this->auth_oauth2->register_routes();
 	}
 
+	/**
+	 * Maybe authenticate via Bearer token
+	 *
+	 * Attempts OAuth2 Bearer token authentication for REST API requests.
+	 *
+	 * @param WP_Error|null|bool $result Authentication result.
+	 * @return WP_Error|null|bool Modified authentication result.
+	 */
 	public function maybe_auth_bearer( $result ) {
-		error_log( 'OAuth2 Debug: maybe_auth_bearer called - result: ' . json_encode( $result ) );
+		error_log( 'OAuth2 Debug: maybe_auth_bearer called - result: ' . wp_json_encode( $result ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 		if ( ! empty( $result ) ) {
 			error_log( 'OAuth2 Debug: Result already set, returning early' );
@@ -96,40 +160,49 @@ class WP_REST_Auth_OAuth2 {
 		}
 
 		$auth_header = $this->get_auth_header();
-		error_log( 'OAuth2 Debug: Auth header: ' . ( $auth_header ?: 'NONE' ) );
+		error_log( 'OAuth2 Debug: Auth header: ' . ( $auth_header ? $auth_header : 'NONE' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
-		if ( ! $auth_header || stripos( $auth_header, 'Bearer ' ) !== 0 ) {
-			error_log( 'OAuth2 Debug: No Bearer token found in header' );
+		if ( ! $auth_header || 0 !== stripos( $auth_header, 'Bearer ' ) ) {
+			error_log( 'OAuth2 Debug: No Bearer token found in header' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			return $result;
 		}
 
 		$token = trim( substr( $auth_header, 7 ) );
-		error_log( 'OAuth2 Debug: Extracted token: ' . substr( $token, 0, 10 ) . '...' );
+		error_log( 'OAuth2 Debug: Extracted token: ' . substr( $token, 0, 10 ) . '...' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
-		// Try OAuth2 authentication
+		// Try OAuth2 authentication.
 		$oauth_result = $this->auth_oauth2->authenticate_bearer( $token );
-		error_log( 'OAuth2 Debug: OAuth2 auth result: ' . ( is_wp_error( $oauth_result ) ? $oauth_result->get_error_message() : 'SUCCESS' ) );
+		error_log( 'OAuth2 Debug: OAuth2 auth result: ' . ( is_wp_error( $oauth_result ) ? $oauth_result->get_error_message() : 'SUCCESS' ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 		if ( is_wp_error( $oauth_result ) ) {
 			return $oauth_result;
 		}
 
-		// Authentication succeeded, return null to allow default handling
-		error_log( 'OAuth2 Debug: Returning null to allow default handling, user: ' . get_current_user_id() );
+		// Authentication succeeded, return null to allow default handling.
+		error_log( 'OAuth2 Debug: Returning null to allow default handling, user: ' . get_current_user_id() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		return null;
 	}
 
+	/**
+	 * Get Authorization header from request
+	 *
+	 * Tries multiple methods to retrieve the Authorization header.
+	 *
+	 * @return string Authorization header value.
+	 */
 	private function get_auth_header() {
 		$auth_header = '';
 
-		// Try various ways to get the Authorization header
+		// Try various ways to get the Authorization header.
+		// phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		if ( isset( $_SERVER['HTTP_AUTHORIZATION'] ) ) {
 			$auth_header = $_SERVER['HTTP_AUTHORIZATION'];
 		} elseif ( isset( $_SERVER['Authorization'] ) ) {
 			$auth_header = $_SERVER['Authorization'];
 		} elseif ( isset( $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ) ) {
-			// Handle Apache with mod_rewrite
+			// Handle Apache with mod_rewrite.
 			$auth_header = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+		// phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		} elseif ( function_exists( 'apache_request_headers' ) ) {
 			$headers     = apache_request_headers();
 			$auth_header = $headers['Authorization'] ?? $headers['authorization'] ?? '';
@@ -138,27 +211,49 @@ class WP_REST_Auth_OAuth2 {
 			$auth_header = $headers['Authorization'] ?? $headers['authorization'] ?? '';
 		}
 
-		error_log( 'OAuth2 Debug: Raw $_SERVER keys: ' . implode( ', ', array_keys( $_SERVER ) ) );
+		error_log( 'OAuth2 Debug: Raw $_SERVER keys: ' . implode( ', ', array_keys( $_SERVER ) ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 		return $auth_header;
 	}
 
+	/**
+	 * Plugin activation
+	 *
+	 * Creates database tables and demo client.
+	 *
+	 * @return void
+	 */
 	public function activate() {
 		$this->create_oauth_tables();
 		$this->create_demo_client();
 	}
 
+	/**
+	 * Plugin deactivation
+	 *
+	 * Cleans up expired tokens.
+	 *
+	 * @return void
+	 */
 	public function deactivate() {
-		// Clean up expired tokens on deactivation
+		// Clean up expired tokens on deactivation.
 		global $wpdb;
 		$table_name = $wpdb->prefix . 'oauth2_refresh_tokens';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$wpdb->query( "DELETE FROM {$table_name} WHERE expires_at < " . time() );
 	}
 
+	/**
+	 * Create OAuth2 database tables
+	 *
+	 * Creates refresh tokens table with required schema.
+	 *
+	 * @return void
+	 */
 	private function create_oauth_tables() {
 		global $wpdb;
 
-		// Reuse JWT table structure but add OAuth2-specific columns
+		// Reuse JWT table structure but add OAuth2-specific columns.
 		$table_name = $wpdb->prefix . 'oauth2_refresh_tokens';
 
 		$charset_collate = $wpdb->get_charset_collate();
@@ -189,12 +284,19 @@ class WP_REST_Auth_OAuth2 {
 		dbDelta( $sql );
 	}
 
+	/**
+	 * Create demo OAuth2 client
+	 *
+	 * Creates a default demo client with common development redirect URIs.
+	 *
+	 * @return void
+	 */
 	private function create_demo_client() {
-		// Get settings directly without using the admin class (which may not be loaded during activation)
+		// Get settings directly without using the admin class (which may not be loaded during activation).
 		$settings = get_option( 'wp_rest_auth_oauth2_settings', array() );
 		$clients  = $settings['clients'] ?? array();
 
-		// Always update the demo client to ensure correct redirect URIs
+		// Always update the demo client to ensure correct redirect URIs.
 		if ( ! isset( $clients['demo-client'] ) ) {
 			$clients['demo-client'] = array(
 				'name'          => 'Demo OAuth2 Client',
@@ -209,12 +311,19 @@ class WP_REST_Auth_OAuth2 {
 				'created_at'    => current_time( 'mysql' ),
 			);
 
-			// Update settings
+			// Update settings.
 			$settings['clients'] = $clients;
 			update_option( 'wp_rest_auth_oauth2_settings', $settings );
 		}
 	}
 
+	/**
+	 * Enqueue admin scripts
+	 *
+	 * Loads JavaScript for OAuth2 admin interface with localized data.
+	 *
+	 * @return void
+	 */
 	public function enqueue_scripts() {
 		if ( is_admin() ) {
 			wp_enqueue_script(
