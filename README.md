@@ -1,5 +1,9 @@
 # OAuth2 Auth Pro - WP REST API
 
+[![Unit Tests](https://github.com/juanma-wp/wp-rest-auth-oauth2/actions/workflows/unit-tests.yml/badge.svg?branch=main)](https://github.com/juanma-wp/wp-rest-auth-oauth2/actions/workflows/unit-tests.yml)
+[![Integration Tests](https://github.com/juanma-wp/wp-rest-auth-oauth2/actions/workflows/integration-tests.yml/badge.svg?branch=main)](https://github.com/juanma-wp/wp-rest-auth-oauth2/actions/workflows/integration-tests.yml)
+[![PHPCS](https://github.com/juanma-wp/wp-rest-auth-oauth2/actions/workflows/phpcs.yml/badge.svg?branch=main)](https://github.com/juanma-wp/wp-rest-auth-oauth2/actions/workflows/phpcs.yml)
+
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html) [![WordPress](https://img.shields.io/badge/WordPress-%3E%3D5.6-blue.svg)](https://wordpress.org) [![PHP Version](https://img.shields.io/badge/PHP-%3E%3D7.4-blue.svg)](https://php.net)
 
 Secure OAuth2 authentication for headless WordPress, SPAs, and mobile apps. No bloat, no upselling.

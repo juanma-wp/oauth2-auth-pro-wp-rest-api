@@ -1,0 +1,57 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  integration-tests:
+    name: Integration tests (wp-env + Docker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install Node dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install PHP dependencies
+        uses: php-actions/composer@v6
+        with:
+          php_version: '8.1'
+          version: 2
+          args: --no-interaction --prefer-dist
+
+      - name: Start wp-env
+        run: npm run env:start
+
+      - name: Wait for WordPress to be ready
+        run: |
+          timeout 120 bash -c 'until curl -s http://localhost:8888 > /dev/null; do sleep 2; done'
+          echo "WordPress is ready!"
+
+      - name: Run integration tests
+        run: npm run test-integration
+
+      - name: Stop wp-env
+        if: always()
+        run: npm run env:stop
