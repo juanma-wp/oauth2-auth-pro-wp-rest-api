@@ -10,6 +10,7 @@ if (!defined('ABSPATH')) {
 
 use WPRestAuth\AuthToolkit\Token\Generator;
 use WPRestAuth\AuthToolkit\Token\Hasher;
+use WPRestAuth\AuthToolkit\Token\RefreshTokenManager;
 use WPRestAuth\AuthToolkit\Security\IpResolver;
 use WPRestAuth\AuthToolkit\Security\UserAgent;
 use WPRestAuth\AuthToolkit\Http\Cookie;

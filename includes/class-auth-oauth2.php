@@ -18,7 +18,16 @@ class Auth_OAuth2 {
     // Store current token scopes for request validation
     private array $current_token_scopes = [];
 
-    // Available OAuth2 scopes and their descriptions
+    /**
+     * Refresh token manager instance
+     *
+     * @var \WPRestAuth\AuthToolkit\Token\RefreshTokenManager
+     */
+    private $refresh_token_manager;
+
+    /**
+     * Available OAuth2 scopes and their descriptions
+     */
     const AVAILABLE_SCOPES = [
         'read' => 'View your posts, pages, and profile information',
         'write' => 'Create and edit posts and pages',
@@ -31,6 +40,17 @@ class Auth_OAuth2 {
     ];
 
     public function __construct() {
+        global $wpdb;
+
+        // Initialize refresh token manager
+        $this->refresh_token_manager = new \WPRestAuth\AuthToolkit\Token\RefreshTokenManager(
+            $wpdb->prefix . 'oauth2_refresh_tokens',
+            WP_OAUTH2_SECRET,
+            'oauth2',
+            'wp_rest_auth_oauth2',
+            300 // 5 minutes cache TTL
+        );
+
         add_action('init', [$this, 'handle_authorize_page']);
     }
 
@@ -1038,8 +1058,15 @@ class Auth_OAuth2 {
             $new_refresh_token = wp_auth_oauth2_generate_token(64);
             $refresh_expires = $now + self::REFRESH_TTL;
 
-            // Update refresh token in database
-            $this->update_oauth2_refresh_token($token_data['id'], $new_refresh_token, $refresh_expires);
+            // Rotate refresh token (revoke old, create new)
+            $this->rotate_oauth2_refresh_token(
+                $refresh_token,
+                $new_refresh_token,
+                $token_data['user_id'],
+                $refresh_expires,
+                $token_data['client_id'],
+                $approved_scopes
+            );
 
             // Set new refresh token cookie
             wp_auth_oauth2_set_cookie(
@@ -1373,46 +1400,22 @@ class Auth_OAuth2 {
      * Store OAuth2 refresh token in database
      */
     private function store_oauth2_refresh_token(int $user_id, string $refresh_token, int $expires_at, string $client_id, array $scopes): bool {
-        global $wpdb;
-
-        $table_name = $wpdb->prefix . 'oauth2_refresh_tokens';
-        $token_hash = wp_auth_oauth2_hash_token($refresh_token, WP_OAUTH2_SECRET);
-
-        $result = $wpdb->insert(
-            $table_name,
+        return $this->refresh_token_manager->store(
+            $user_id,
+            $refresh_token,
+            $expires_at,
             [
-                'user_id' => $user_id,
-                'token_hash' => $token_hash,
-                'expires_at' => $expires_at,
-                'created_at' => time(),
-                'is_revoked' => 0,
-                'client_id' => $client_id, // Store OAuth2 client info
-                'scopes' => json_encode($scopes), // Store granted scopes
-                'token_type' => 'oauth2' // Distinguish from JWT tokens
-            ],
-            [
-                '%d', '%s', '%d', '%d', '%d', '%s', '%s', '%s'
+                'client_id' => $client_id,
+                'scopes' => json_encode($scopes)
             ]
         );
-
-        return $result !== false;
     }
 
     /**
      * Validate OAuth2 refresh token
      */
     private function validate_oauth2_refresh_token(string $refresh_token) {
-        global $wpdb;
-
-        $table_name = $wpdb->prefix . 'oauth2_refresh_tokens';
-        $token_hash = wp_auth_oauth2_hash_token($refresh_token, WP_OAUTH2_SECRET);
-        $now = time();
-
-        $token_data = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$table_name} WHERE token_hash = %s AND expires_at > %d AND is_revoked = 0 AND token_type = 'oauth2'",
-            $token_hash,
-            $now
-        ), ARRAY_A);
+        $token_data = $this->refresh_token_manager->validate($refresh_token);
 
         if (!$token_data) {
             return new WP_Error(
@@ -1426,46 +1429,25 @@ class Auth_OAuth2 {
     }
 
     /**
-     * Update OAuth2 refresh token (for token rotation)
+     * Rotate OAuth2 refresh token (revoke old, create new)
      */
-    private function update_oauth2_refresh_token(int $token_id, string $new_refresh_token, int $expires_at): bool {
-        global $wpdb;
-
-        $table_name = $wpdb->prefix . 'oauth2_refresh_tokens';
-        $token_hash = wp_auth_oauth2_hash_token($new_refresh_token, WP_OAUTH2_SECRET);
-
-        $result = $wpdb->update(
-            $table_name,
+    private function rotate_oauth2_refresh_token(string $old_token, string $new_token, int $user_id, int $expires_at, string $client_id, array $scopes): bool {
+        return $this->refresh_token_manager->rotate(
+            $old_token,
+            $new_token,
+            $user_id,
+            $expires_at,
             [
-                'token_hash' => $token_hash,
-                'expires_at' => $expires_at,
-                'created_at' => time()
-            ],
-            ['id' => $token_id],
-            ['%s', '%d', '%d'],
-            ['%d']
+                'client_id' => $client_id,
+                'scopes' => json_encode($scopes)
+            ]
         );
-
-        return $result !== false;
     }
 
     /**
      * Revoke OAuth2 refresh token
      */
     private function revoke_oauth2_refresh_token(string $refresh_token): bool {
-        global $wpdb;
-
-        $table_name = $wpdb->prefix . 'oauth2_refresh_tokens';
-        $token_hash = wp_auth_oauth2_hash_token($refresh_token, WP_OAUTH2_SECRET);
-
-        $result = $wpdb->update(
-            $table_name,
-            ['is_revoked' => 1],
-            ['token_hash' => $token_hash, 'token_type' => 'oauth2'],
-            ['%d'],
-            ['%s', '%s']
-        );
-
-        return $result !== false;
+        return $this->refresh_token_manager->revoke($refresh_token);
     }
 }
