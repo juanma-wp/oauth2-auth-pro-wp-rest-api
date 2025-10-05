@@ -12,7 +12,6 @@
 composer.lock
 
 # npm
-package-lock.json
 yarn.lock
 
 # IDE

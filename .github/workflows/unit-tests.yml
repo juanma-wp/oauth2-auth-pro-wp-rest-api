@@ -47,4 +47,4 @@ jobs:
         run: find . -name "*.php" -not -path "./vendor/*" -not -path "./node_modules/*" -exec php -l {} \;
 
       - name: Run unit tests (PHP compatibility)
-        run: vendor/bin/phpunit --testsuite unit --testdox
+        run: vendor/bin/phpunit -c phpunit-unit.xml --testdox

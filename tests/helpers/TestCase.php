@@ -130,18 +130,21 @@ class TestCase extends BaseTestCase
     {
         if (!function_exists('get_option')) {
             function get_option($option, $default = false) {
-                static $options = [
-                    'wp_rest_auth_oauth2_settings' => [
-                        'clients' => [
-                            'test-client' => [
-                                'name' => 'Test Client',
-                                'client_secret' => wp_hash_password('test-secret'),
-                                'redirect_uris' => ['http://localhost:3000/callback'],
-                                'created_at' => '2023-01-01 00:00:00'
+                static $options = null;
+                if ($options === null) {
+                    $options = [
+                        'wp_rest_auth_oauth2_settings' => [
+                            'clients' => [
+                                'test-client' => [
+                                    'name' => 'Test Client',
+                                    'client_secret' => wp_hash_password('test-secret'),
+                                    'redirect_uris' => ['http://localhost:3000/callback'],
+                                    'created_at' => '2023-01-01 00:00:00'
+                                ]
                             ]
                         ]
-                    ]
-                ];
+                    ];
+                }
                 return $options[$option] ?? $default;
             }
         }
