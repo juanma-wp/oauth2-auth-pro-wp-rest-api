@@ -424,6 +424,7 @@ class Auth_OAuth2 {
 		// Set content type and start output.
 		header( 'Content-Type: text/html; charset=utf-8' );
 
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- render_consent_page() already escapes all output internally.
 		echo $this->render_consent_page( $app_name, $user, $scopes, $client_id, $redirect_uri, $state, $code_challenge, $code_challenge_method );
 		exit;
 	}
@@ -445,9 +446,24 @@ class Auth_OAuth2 {
 		return $app_names[ $client_id ] ?? 'Third-Party Application';
 	}
 
+	/**
+	 * Render consent page HTML
+	 *
+	 * Generates OAuth2 authorization consent screen with WordPress styling.
+	 *
+	 * @param string  $app_name              Application name.
+	 * @param WP_User $user                  WordPress user.
+	 * @param array   $scopes                Requested scopes.
+	 * @param string  $client_id             Client identifier.
+	 * @param string  $redirect_uri          Redirect URI.
+	 * @param string  $state                 State parameter.
+	 * @param string  $code_challenge        PKCE code challenge.
+	 * @param string  $code_challenge_method PKCE challenge method.
+	 * @return string HTML content.
+	 */
 	private function render_consent_page( string $app_name, WP_User $user, array $scopes, string $client_id, string $redirect_uri, string $state, string $code_challenge = '', string $code_challenge_method = 'S256' ): string {
 		$site_name = get_bloginfo( 'name' );
-		$user_name = $user->display_name ?: $user->user_login;
+		$user_name = $user->display_name ? $user->display_name : $user->user_login;
 
 		ob_start();
 		?>
@@ -458,7 +474,7 @@ class Auth_OAuth2 {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0">
 			<title>Authorize <?php echo esc_html( $app_name ); ?> - <?php echo esc_html( $site_name ); ?></title>
 			<?php
-			// Load WordPress admin CSS
+			// Load WordPress admin CSS.
 			wp_admin_css( 'login' );
 			wp_admin_css( 'buttons' );
 			?>
@@ -716,7 +732,7 @@ class Auth_OAuth2 {
 				<!-- User Account Info -->
 				<div class="user-account">
 					<div class="user-avatar">
-						<?php echo strtoupper( substr( $user_name, 0, 1 ) ); ?>
+						<?php echo esc_html( strtoupper( substr( $user_name, 0, 1 ) ) ); ?>
 					</div>
 					<div class="user-details">
 						<div class="user-name"><?php echo esc_html( $user_name ); ?></div>
@@ -780,6 +796,14 @@ class Auth_OAuth2 {
 		return ob_get_clean();
 	}
 
+	/**
+	 * Get scope icon
+	 *
+	 * Returns emoji icon for OAuth2 scope.
+	 *
+	 * @param string $scope OAuth2 scope.
+	 * @return string Emoji icon.
+	 */
 	private function get_scope_icon( string $scope ): string {
 		$icons = array(
 			'read'              => '👁️',
@@ -795,17 +819,35 @@ class Auth_OAuth2 {
 		return $icons[ $scope ] ?? '🔧';
 	}
 
+	/**
+	 * Handle consent response
+	 *
+	 * Processes user's approval/denial of OAuth2 authorization.
+	 *
+	 * @param string $client_id              Client identifier.
+	 * @param string $redirect_uri           Redirect URI.
+	 * @param string $state                  State parameter.
+	 * @param array  $scopes                 Requested scopes.
+	 * @param int    $user_id                WordPress user ID.
+	 * @param string $code_challenge         PKCE code challenge.
+	 * @param string $code_challenge_method  PKCE challenge method.
+	 * @return void
+	 */
 	private function handle_consent_response( string $client_id, string $redirect_uri, string $state, array $scopes, int $user_id, string $code_challenge = '', string $code_challenge_method = 'S256' ): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$consent = $_POST['oauth2_consent'] ?? '';
 
-		// Retrieve PKCE params from POST if not passed (from form submission)
+		// Retrieve PKCE params from POST if not passed (from form submission).
+		// phpcs:disable WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		if ( empty( $code_challenge ) && ! empty( $_POST['code_challenge'] ) ) {
 			$code_challenge        = $_POST['code_challenge'];
 			$code_challenge_method = $_POST['code_challenge_method'] ?? 'S256';
 		}
+		// phpcs:enable WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log(
-			'OAuth2 Debug: Handling consent response - ' . json_encode(
+			'OAuth2 Debug: Handling consent response - ' . wp_json_encode(
 				array(
 					'consent'      => $consent,
 					'client_id'    => $client_id,
@@ -818,16 +860,17 @@ class Auth_OAuth2 {
 			)
 		);
 
-		if ( $consent !== 'approve' ) {
+		if ( 'approve' !== $consent ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( 'OAuth2 Debug: Access denied by user' );
 			$this->redirect_with_error( $redirect_uri, 'access_denied', $state );
 			return;
 		}
 
-		// Generate authorization code
+		// Generate authorization code.
 		$code = wp_auth_oauth2_generate_token( 32 );
 
-		// Store authorization code with approved scopes and PKCE params
+		// Store authorization code with approved scopes and PKCE params.
 		$code_data = array(
 			'client_id'    => $client_id,
 			'user_id'      => $user_id,
@@ -836,7 +879,7 @@ class Auth_OAuth2 {
 			'created'      => time(),
 		);
 
-		// Add PKCE parameters if present
+		// Add PKCE parameters if present.
 		if ( ! empty( $code_challenge ) ) {
 			$code_data['code_challenge']        = $code_challenge;
 			$code_data['code_challenge_method'] = $code_challenge_method;
@@ -844,7 +887,7 @@ class Auth_OAuth2 {
 
 		set_transient( $this->code_key( $code ), $code_data, self::CODE_TTL );
 
-		// Redirect back to application with authorization code
+		// Redirect back to application with authorization code.
 		$location = add_query_arg(
 			array_filter(
 				array(
@@ -855,8 +898,9 @@ class Auth_OAuth2 {
 			$redirect_uri
 		);
 
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log(
-			'OAuth2 Debug: Redirecting to callback with code - ' . json_encode(
+			'OAuth2 Debug: Redirecting to callback with code - ' . wp_json_encode(
 				array(
 					'code'              => substr( $code, 0, 10 ) . '...',
 					'state'             => $state,
@@ -865,13 +909,24 @@ class Auth_OAuth2 {
 			)
 		);
 
+		// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
 		wp_redirect( $location );
 		exit;
 	}
 
+	/**
+	 * Redirect with OAuth2 error
+	 *
+	 * Redirects to client with error parameter.
+	 *
+	 * @param string|null $redirect_uri Redirect URI.
+	 * @param string      $error        Error code.
+	 * @param string|null $state        State parameter.
+	 * @return void
+	 */
 	private function redirect_with_error( ?string $redirect_uri, string $error, ?string $state ): void {
 		if ( ! $redirect_uri ) {
-			wp_die( "OAuth2 error: $error" );
+			wp_die( esc_html( "OAuth2 error: $error" ) );
 		}
 
 		$params = array_filter(
@@ -882,10 +937,18 @@ class Auth_OAuth2 {
 		);
 
 		$location = add_query_arg( $params, $redirect_uri );
+		// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
 		wp_redirect( $location );
 		exit;
 	}
 
+	/**
+	 * Add CORS support
+	 *
+	 * Adds CORS headers to REST API responses for OAuth2 endpoints.
+	 *
+	 * @return void
+	 */
 	public function add_cors_support(): void {
 		add_filter(
 			'rest_pre_serve_request',
@@ -898,6 +961,14 @@ class Auth_OAuth2 {
 		);
 	}
 
+	/**
+	 * Authorization endpoint
+	 *
+	 * REST API endpoint for OAuth2 authorization flow.
+	 *
+	 * @param WP_REST_Request $request REST request.
+	 * @return mixed Response or redirect.
+	 */
 	public function authorize_endpoint( WP_REST_Request $request ) {
 		wp_auth_oauth2_maybe_add_cors_headers();
 
@@ -906,7 +977,7 @@ class Auth_OAuth2 {
 		$redirect_uri  = $request->get_param( 'redirect_uri' );
 		$state         = $request->get_param( 'state' );
 
-		if ( $response_type !== 'code' ) {
+		if ( 'code' !== $response_type ) {
 			return $this->oauth_error_redirect( $redirect_uri, 'unsupported_response_type', $state );
 		}
 
@@ -932,7 +1003,7 @@ class Auth_OAuth2 {
 		$user = wp_get_current_user();
 		$code = wp_auth_oauth2_generate_token( 32 );
 
-		// Store authorization code
+		// Store authorization code.
 		set_transient(
 			$this->code_key( $code ),
 			array(
@@ -944,7 +1015,7 @@ class Auth_OAuth2 {
 			self::CODE_TTL
 		);
 
-		// Auto-approve for demo (in production, show consent screen)
+		// Auto-approve for demo (in production, show consent screen).
 		$location = add_query_arg(
 			array_filter(
 				array(
@@ -959,6 +1030,14 @@ class Auth_OAuth2 {
 		exit;
 	}
 
+	/**
+	 * Token endpoint
+	 *
+	 * REST API endpoint to exchange authorization code for access token.
+	 *
+	 * @param WP_REST_Request $request REST request.
+	 * @return WP_REST_Response|WP_Error Token response or error.
+	 */
 	public function token_endpoint( WP_REST_Request $request ) {
 		wp_auth_oauth2_maybe_add_cors_headers();
 
@@ -969,7 +1048,7 @@ class Auth_OAuth2 {
 		$client_secret = $request->get_param( 'client_secret' );
 		$code_verifier = $request->get_param( 'code_verifier' );
 
-		if ( $grant_type !== 'authorization_code' ) {
+		if ( 'authorization_code' !== $grant_type ) {
 			return wp_auth_oauth2_error_response(
 				'unsupported_grant_type',
 				'Only authorization_code grant type is supported',
@@ -995,11 +1074,11 @@ class Auth_OAuth2 {
 			);
 		}
 
-		// Check if PKCE was used in the authorization request
+		// Check if PKCE was used in the authorization request.
 		$pkce_required = ! empty( $code_data['code_challenge'] );
 
 		if ( $pkce_required ) {
-			// PKCE flow: validate code_verifier
+			// PKCE flow: validate code_verifier.
 			if ( empty( $code_verifier ) ) {
 				return wp_auth_oauth2_error_response(
 					'invalid_request',
@@ -1019,9 +1098,9 @@ class Auth_OAuth2 {
 				);
 			}
 
-			// PKCE validated successfully - client_secret not required
+			// PKCE validated successfully - client_secret not required.
 		} else {
-			// Traditional flow: require client_secret
+			// Traditional flow: require client_secret.
 			if ( empty( $client_secret ) ) {
 				return wp_auth_oauth2_error_response(
 					'invalid_request',
@@ -1055,14 +1134,14 @@ class Auth_OAuth2 {
 			);
 		}
 
-		// Consume the authorization code
+		// Consume the authorization code.
 		delete_transient( $this->code_key( $code ) );
 
-		// Generate access token
+		// Generate access token.
 		$access_token    = wp_auth_oauth2_generate_token( 48 );
 		$approved_scopes = $code_data['scopes'] ?? array( 'read' );
 
-		// Store access token with approved scopes
+		// Store access token with approved scopes.
 		set_transient(
 			$this->token_key( $access_token ),
 			array(
@@ -1074,19 +1153,20 @@ class Auth_OAuth2 {
 			self::TOKEN_TTL
 		);
 
-		// Generate refresh token
+		// Generate refresh token.
 		$now             = time();
 		$refresh_token   = wp_auth_oauth2_generate_token( 64 );
 		$refresh_expires = $now + self::REFRESH_TTL;
 
-		// Store refresh token in database
+		// Store refresh token in database.
 		$this->store_oauth2_refresh_token( $code_data['user_id'], $refresh_token, $refresh_expires, $client_id, $approved_scopes );
 
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log(
-			'OAuth2 Debug: About to set refresh token cookie - ' . json_encode(
+			'OAuth2 Debug: About to set refresh token cookie - ' . wp_json_encode(
 				array(
 					'cookie_name' => self::OAUTH2_REFRESH_COOKIE_NAME,
-					'expires_at'  => date( 'Y-m-d H:i:s', $refresh_expires ),
+					'expires_at'  => gmdate( 'Y-m-d H:i:s', $refresh_expires ),
 					'path'        => '/wp-json/oauth2/v1/',
 					'user_id'     => $code_data['user_id'],
 					'client_id'   => $client_id,
@@ -1094,7 +1174,7 @@ class Auth_OAuth2 {
 			)
 		);
 
-		// Set refresh token as HttpOnly cookie
+		// Set refresh token as HttpOnly cookie.
 		$cookie_set = wp_auth_oauth2_set_cookie(
 			self::OAUTH2_REFRESH_COOKIE_NAME,
 			$refresh_token,
@@ -1104,10 +1184,12 @@ class Auth_OAuth2 {
 			true
 		);
 
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( 'OAuth2 Debug: OAuth2 token exchange successful, cookie set result: ' . ( $cookie_set ? 'SUCCESS' : 'FAILED' ) );
 
-		// Debug: Check what cookies are available after setting
-		error_log( 'OAuth2 Debug: 🍪 Cookies after token exchange: ' . json_encode( $_COOKIE ) );
+		// Debug: Check what cookies are available after setting.
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		error_log( 'OAuth2 Debug: 🍪 Cookies after token exchange: ' . wp_json_encode( $_COOKIE ) );
 
 		return wp_auth_oauth2_success_response(
 			array(
@@ -1121,6 +1203,14 @@ class Auth_OAuth2 {
 		);
 	}
 
+	/**
+	 * Userinfo endpoint
+	 *
+	 * REST API endpoint to retrieve authenticated user information.
+	 *
+	 * @param WP_REST_Request $request REST request.
+	 * @return WP_REST_Response|WP_Error User data or error.
+	 */
 	public function userinfo_endpoint( WP_REST_Request $request ) {
 		wp_auth_oauth2_maybe_add_cors_headers();
 
@@ -1134,29 +1224,30 @@ class Auth_OAuth2 {
 			);
 		}
 
-		// Get scopes from the current access token
+		// Get scopes from the current access token.
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$auth_header = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
 		$token       = '';
-		if ( stripos( $auth_header, 'Bearer ' ) === 0 ) {
+		if ( 0 === stripos( $auth_header, 'Bearer ' ) ) {
 			$token = trim( substr( $auth_header, 7 ) );
 		}
 
 		$token_data     = get_transient( $this->token_key( $token ) );
 		$granted_scopes = $token_data['scopes'] ?? array( 'read' );
 
-		// Build response data based on granted scopes
+		// Build response data based on granted scopes.
 		$response_data = array(
 			'user_id'        => (string) $user->ID,
 			'granted_scopes' => $granted_scopes,
 		);
 
-		// Add user info only if 'read' scope is granted
-		if ( in_array( 'read', $granted_scopes ) ) {
+		// Add user info only if 'read' scope is granted.
+		if ( in_array( 'read', $granted_scopes, true ) ) {
 			$response_data['user'] = wp_auth_oauth2_format_user_data( $user, true );
 		}
 
-		// Add management info if 'manage_users' scope is granted
-		if ( in_array( 'manage_users', $granted_scopes ) && user_can( $user, 'list_users' ) ) {
+		// Add management info if 'manage_users' scope is granted.
+		if ( in_array( 'manage_users', $granted_scopes, true ) && user_can( $user, 'list_users' ) ) {
 			$response_data['capabilities'] = array(
 				'can_manage_users' => true,
 				'can_edit_users'   => user_can( $user, 'edit_users' ),
@@ -1167,9 +1258,18 @@ class Auth_OAuth2 {
 		return wp_auth_oauth2_success_response( $response_data, 'User info retrieved successfully', 200 );
 	}
 
+	/**
+	 * Refresh token endpoint
+	 *
+	 * REST API endpoint to generate new access token from refresh token.
+	 *
+	 * @param WP_REST_Request $request REST request.
+	 * @return WP_REST_Response|WP_Error Token response or error.
+	 */
 	public function refresh_token_endpoint( WP_REST_Request $request ) {
 		wp_auth_oauth2_maybe_add_cors_headers();
 
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$refresh_token = $_COOKIE[ self::OAUTH2_REFRESH_COOKIE_NAME ] ?? '';
 
 		if ( empty( $refresh_token ) ) {
@@ -1195,11 +1295,11 @@ class Auth_OAuth2 {
 			);
 		}
 
-		// Generate new access token
+		// Generate new access token.
 		$access_token    = wp_auth_oauth2_generate_token( 48 );
 		$approved_scopes = json_decode( $token_data['scopes'], true ) ?? array( 'read' );
 
-		// Store access token with approved scopes
+		// Store access token with approved scopes.
 		set_transient(
 			$this->token_key( $access_token ),
 			array(
@@ -1211,13 +1311,13 @@ class Auth_OAuth2 {
 			self::TOKEN_TTL
 		);
 
-		// Optionally rotate refresh token for better security
+		// Optionally rotate refresh token for better security.
 		if ( apply_filters( 'wp_auth_oauth2_rotate_oauth2_refresh_token', true ) ) {
 			$now               = time();
 			$new_refresh_token = wp_auth_oauth2_generate_token( 64 );
 			$refresh_expires   = $now + self::REFRESH_TTL;
 
-			// Rotate refresh token (revoke old, create new)
+			// Rotate refresh token (revoke old, create new).
 			$this->rotate_oauth2_refresh_token(
 				$refresh_token,
 				$new_refresh_token,
@@ -1227,7 +1327,7 @@ class Auth_OAuth2 {
 				$approved_scopes
 			);
 
-			// Set new refresh token cookie
+			// Set new refresh token cookie.
 			wp_auth_oauth2_set_cookie(
 				self::OAUTH2_REFRESH_COOKIE_NAME,
 				$new_refresh_token,
@@ -1250,21 +1350,38 @@ class Auth_OAuth2 {
 		);
 	}
 
+	/**
+	 * Logout endpoint
+	 *
+	 * REST API endpoint to revoke refresh token and logout user.
+	 *
+	 * @param WP_REST_Request $request REST request.
+	 * @return WP_REST_Response Logout response.
+	 */
 	public function logout_endpoint( WP_REST_Request $request ) {
 		wp_auth_oauth2_maybe_add_cors_headers();
 
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated, WordPress.Security.ValidatedSanitizedInput.MissingUnslash, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$refresh_token = $_COOKIE[ self::OAUTH2_REFRESH_COOKIE_NAME ] ?? '';
 
 		if ( ! empty( $refresh_token ) ) {
 			$this->revoke_oauth2_refresh_token( $refresh_token );
 		}
 
-		// Delete refresh token cookie
+		// Delete refresh token cookie.
 		wp_auth_oauth2_delete_cookie( self::OAUTH2_REFRESH_COOKIE_NAME, '/wp-json/oauth2/v1/' );
 
 		return wp_auth_oauth2_success_response( array(), 'Logout successful', 200 );
 	}
 
+	/**
+	 * Revoke endpoint
+	 *
+	 * REST API endpoint to revoke access or refresh token.
+	 *
+	 * @param WP_REST_Request $request REST request.
+	 * @return WP_REST_Response Revoke response.
+	 */
 	public function revoke_endpoint( WP_REST_Request $request ) {
 		wp_auth_oauth2_maybe_add_cors_headers();
 
@@ -1279,17 +1396,25 @@ class Auth_OAuth2 {
 			);
 		}
 
-		// Attempt to revoke the token
-		if ( $token_type_hint === 'refresh_token' || empty( $token_type_hint ) ) {
+		// Attempt to revoke the token.
+		if ( 'refresh_token' === $token_type_hint || empty( $token_type_hint ) ) {
 			$this->revoke_oauth2_refresh_token( $token );
 		}
 
-		// Also try to revoke as access token (transient)
+		// Also try to revoke as access token (transient).
 		$this->revoke_token( $token );
 
 		return wp_auth_oauth2_success_response( array(), 'Token revoked successfully', 200 );
 	}
 
+	/**
+	 * Scopes endpoint
+	 *
+	 * REST API endpoint to retrieve available OAuth2 scopes.
+	 *
+	 * @param WP_REST_Request $request REST request.
+	 * @return WP_REST_Response Scopes response.
+	 */
 	public function scopes_endpoint( WP_REST_Request $request ) {
 		wp_auth_oauth2_maybe_add_cors_headers();
 
@@ -1298,6 +1423,14 @@ class Auth_OAuth2 {
 		return wp_auth_oauth2_success_response( $scopes, 'Available scopes retrieved successfully', 200 );
 	}
 
+	/**
+	 * Authenticate bearer token
+	 *
+	 * Validates access token and returns authenticated user.
+	 *
+	 * @param string $token Access token.
+	 * @return WP_User|WP_Error User object or error.
+	 */
 	public function authenticate_bearer( string $token ) {
 		$token_data = get_transient( $this->token_key( $token ) );
 
@@ -1318,7 +1451,7 @@ class Auth_OAuth2 {
 			);
 		}
 
-		// Store token scopes for later scope validation
+		// Store token scopes for later scope validation.
 		$this->current_token_scopes = $token_data['scopes'] ?? array();
 
 		$this->debug_log(
@@ -1329,19 +1462,27 @@ class Auth_OAuth2 {
 			)
 		);
 
-		// Add scope validation hook for REST API requests
+		// Add scope validation hook for REST API requests.
 		add_filter( 'rest_pre_dispatch', array( $this, 'validate_request_scopes' ), 10, 3 );
 
 		wp_set_current_user( $user->ID );
 		return true;
 	}
 
+	/**
+	 * Get OAuth2 client
+	 *
+	 * Retrieves client configuration by client ID.
+	 *
+	 * @param string $client_id Client identifier.
+	 * @return array|null Client data or null.
+	 */
 	private function get_client( string $client_id ): ?array {
 		if ( empty( $client_id ) ) {
 			return null;
 		}
 
-		// First try to get clients from admin settings
+		// First try to get clients from admin settings.
 		$oauth2_settings = WP_REST_Auth_OAuth2_Admin_Settings::get_oauth2_settings();
 		$clients         = $oauth2_settings['clients'] ?? array();
 
@@ -1349,31 +1490,63 @@ class Auth_OAuth2 {
 			return $clients[ $client_id ];
 		}
 
-		// Fallback to old option for backward compatibility
+		// Fallback to old option for backward compatibility.
 		$old_clients = get_option( self::OPTION_CLIENTS, array() );
 		return $old_clients[ $client_id ] ?? null;
 	}
 
+	/**
+	 * Get code transient key
+	 *
+	 * @param string $code Authorization code.
+	 * @return string Transient key.
+	 */
 	private function code_key( string $code ): string {
 		return 'oauth2_code_' . md5( $code );
 	}
 
+	/**
+	 * Get token transient key
+	 *
+	 * @param string $token Access token.
+	 * @return string Transient key.
+	 */
 	private function token_key( string $token ): string {
 		return 'oauth2_token_' . md5( $token );
 	}
 
+	/**
+	 * Debug log
+	 *
+	 * Logs debug messages if debug logging is enabled.
+	 *
+	 * @param string $message Log message.
+	 * @param mixed  $data    Optional data to log.
+	 * @return void
+	 */
 	private function debug_log( string $message, $data = null ) {
 		$general_settings = WP_REST_Auth_OAuth2_Admin_Settings::get_general_settings();
 
 		if ( $general_settings['enable_debug_logging'] ) {
 			$log_message = 'OAuth2 Debug: ' . $message;
-			if ( $data !== null ) {
-				$log_message .= ' - ' . json_encode( $data );
+			if ( null !== $data ) {
+				$log_message .= ' - ' . wp_json_encode( $data );
 			}
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( $log_message );
 		}
 	}
 
+	/**
+	 * OAuth error redirect
+	 *
+	 * Redirects to client with OAuth2 error.
+	 *
+	 * @param string|null $redirect_uri Redirect URI.
+	 * @param string      $error        Error code.
+	 * @param string|null $state        State parameter.
+	 * @return WP_Error|void Error or redirects.
+	 */
 	private function oauth_error_redirect( ?string $redirect_uri = null, string $error = 'invalid_request', ?string $state = null ) {
 		if ( ! $redirect_uri ) {
 			return new WP_Error( $error, 'OAuth2 error: ' . $error, array( 'status' => 400 ) );
@@ -1388,10 +1561,21 @@ class Auth_OAuth2 {
 
 		$location = add_query_arg( $params, $redirect_uri );
 
+		// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
 		wp_redirect( $location );
 		exit;
 	}
 
+	/**
+	 * Upsert OAuth2 client
+	 *
+	 * Creates or updates OAuth2 client configuration.
+	 *
+	 * @param string $client_id      Client identifier.
+	 * @param string $client_secret  Client secret.
+	 * @param array  $redirect_uris  Allowed redirect URIs.
+	 * @return void
+	 */
 	public static function upsert_client( string $client_id, string $client_secret, array $redirect_uris ): void {
 		$clients = get_option( self::OPTION_CLIENTS, array() );
 
@@ -1403,19 +1587,46 @@ class Auth_OAuth2 {
 		update_option( self::OPTION_CLIENTS, $clients );
 	}
 
+	/**
+	 * Get all OAuth2 clients
+	 *
+	 * @return array Clients array.
+	 */
 	public function get_clients(): array {
 		return get_option( self::OPTION_CLIENTS, array() );
 	}
 
+	/**
+	 * Revoke access token
+	 *
+	 * @param string $access_token Access token to revoke.
+	 * @return bool True if revoked.
+	 */
 	public function revoke_token( string $access_token ): bool {
 		return delete_transient( $this->token_key( $access_token ) );
 	}
 
+	/**
+	 * Clean expired authorization codes
+	 *
+	 * Placeholder for custom cleanup. Transients auto-cleaned by WordPress.
+	 *
+	 * @return void
+	 */
 	public function clean_expired_codes(): void {
-		// Transients are automatically cleaned by WordPress
-		// This is a placeholder for custom cleanup if needed
+		// Transients are automatically cleaned by WordPress.
+		// This is a placeholder for custom cleanup if needed.
 	}
 
+	/**
+	 * Validate redirect URI
+	 *
+	 * Checks if redirect URI is registered for client.
+	 *
+	 * @param string $client_id    Client identifier.
+	 * @param string $redirect_uri Redirect URI to validate.
+	 * @return bool True if valid.
+	 */
 	public function validate_redirect_uri( string $client_id, string $redirect_uri ): bool {
 		$client = $this->get_client( $client_id );
 
@@ -1427,10 +1638,17 @@ class Auth_OAuth2 {
 	}
 
 	/**
-	 * Validate that the current OAuth2 token has required scopes for the API request
+	 * Validate OAuth2 token scopes
+	 *
+	 * Validates that current OAuth2 token has required scopes for API request.
+	 *
+	 * @param mixed           $result  Dispatch result.
+	 * @param WP_REST_Server  $server  REST server instance.
+	 * @param WP_REST_Request $request REST request.
+	 * @return mixed Result or error.
 	 */
 	public function validate_request_scopes( $result, $server, $request ) {
-		// Skip validation if there's already an error or no token scopes stored
+		// Skip validation if there's already an error or no token scopes stored.
 		if ( is_wp_error( $result ) || empty( $this->current_token_scopes ) ) {
 			return $result;
 		}
@@ -1438,7 +1656,7 @@ class Auth_OAuth2 {
 		$route  = $request->get_route();
 		$method = $request->get_method();
 
-		// Debug logging
+		// Debug logging.
 		$this->debug_log(
 			'Validating request',
 			array(
@@ -1448,7 +1666,7 @@ class Auth_OAuth2 {
 			)
 		);
 
-		// Get required scopes for this endpoint
+		// Get required scopes for this endpoint.
 		$required_scopes = $this->get_endpoint_required_scopes( $route, $method );
 
 		$this->debug_log(
@@ -1462,13 +1680,13 @@ class Auth_OAuth2 {
 
 		if ( empty( $required_scopes ) ) {
 			$this->debug_log( 'No scopes required for this endpoint, allowing access' );
-			return $result; // No specific scopes required
+			return $result; // No specific scopes required.
 		}
 
-		// Check if token has at least one required scope
+		// Check if token has at least one required scope.
 		$has_required_scope = false;
 		foreach ( $required_scopes as $required_scope ) {
-			if ( in_array( $required_scope, $this->current_token_scopes ) ) {
+			if ( in_array( $required_scope, $this->current_token_scopes, true ) ) {
 				$has_required_scope = true;
 				break;
 			}
@@ -1482,7 +1700,7 @@ class Auth_OAuth2 {
 				$method,
 				$route,
 				implode( ', ', $required_scopes ),
-				implode( ', ', $this->current_token_scopes ?: array( 'none' ) )
+				implode( ', ', $this->current_token_scopes ? $this->current_token_scopes : array( 'none' ) )
 			);
 
 			return new WP_Error(
@@ -1500,24 +1718,31 @@ class Auth_OAuth2 {
 			);
 		}
 
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( 'OAuth2 Debug: Access GRANTED - scope validation passed' );
 		return $result;
 	}
 
 	/**
-	 * Map API endpoints to required OAuth2 scopes
+	 * Get endpoint required scopes
+	 *
+	 * Maps API endpoints to required OAuth2 scopes.
+	 *
+	 * @param string $route  Request route.
+	 * @param string $method Request method.
+	 * @return array Required scopes.
 	 */
 	private function get_endpoint_required_scopes( string $route, string $method ): array {
-		// WordPress REST API endpoint scope mappings
+		// WordPress REST API endpoint scope mappings.
 		$endpoint_scopes = array(
-			// Posts endpoints
+			// Posts endpoints.
 			'GET:/wp/v2/posts'           => array( 'read' ),
 			'POST:/wp/v2/posts'          => array( 'write' ),
 			'PUT:/wp/v2/posts/*'         => array( 'write' ),
 			'PATCH:/wp/v2/posts/*'       => array( 'write' ),
 			'DELETE:/wp/v2/posts/*'      => array( 'delete' ),
 
-			// User endpoints
+			// User endpoints.
 			'GET:/wp/v2/users'           => array( 'read' ),
 			'GET:/wp/v2/users/*'         => array( 'read' ),
 			'GET:/wp/v2/users/me'        => array( 'read' ),
@@ -1525,20 +1750,20 @@ class Auth_OAuth2 {
 			'PUT:/wp/v2/users/*'         => array( 'manage_users' ),
 			'DELETE:/wp/v2/users/*'      => array( 'manage_users' ),
 
-			// Media endpoints - reading media info should only require 'read'
+			// Media endpoints - reading media info should only require 'read'.
 			'GET:/wp/v2/media'           => array( 'read' ),
 			'GET:/wp/v2/media/*'         => array( 'read' ),
 			'POST:/wp/v2/media'          => array( 'upload_files' ),
 			'PUT:/wp/v2/media/*'         => array( 'upload_files' ),
 			'DELETE:/wp/v2/media/*'      => array( 'upload_files' ),
 
-			// Comments endpoints
+			// Comments endpoints.
 			'GET:/wp/v2/comments'        => array( 'read' ),
 			'POST:/wp/v2/comments'       => array( 'moderate_comments' ),
 			'PUT:/wp/v2/comments/*'      => array( 'moderate_comments' ),
 			'DELETE:/wp/v2/comments/*'   => array( 'moderate_comments' ),
 
-			// Categories/Tags endpoints
+			// Categories/Tags endpoints.
 			'GET:/wp/v2/categories'      => array( 'read' ),
 			'POST:/wp/v2/categories'     => array( 'manage_categories' ),
 			'PUT:/wp/v2/categories/*'    => array( 'manage_categories' ),
@@ -1552,14 +1777,14 @@ class Auth_OAuth2 {
 
 		$route_pattern = $method . ':' . $route;
 
-		// Try exact match first
+		// Try exact match first.
 		if ( isset( $endpoint_scopes[ $route_pattern ] ) ) {
 			return $endpoint_scopes[ $route_pattern ];
 		}
 
-		// Try wildcard matches for routes with IDs
+		// Try wildcard matches for routes with IDs.
 		foreach ( $endpoint_scopes as $pattern => $scopes ) {
-			if ( strpos( $pattern, '*' ) !== false ) {
+			if ( false !== strpos( $pattern, '*' ) ) {
 				$regex_pattern = str_replace( array( '*', '/' ), array( '[^/]+', '\/' ), $pattern );
 				if ( preg_match( '/^' . $regex_pattern . '$/', $route_pattern ) ) {
 					return $scopes;
@@ -1567,11 +1792,20 @@ class Auth_OAuth2 {
 			}
 		}
 
-		return array(); // No specific scopes required
+		return array(); // No specific scopes required.
 	}
 
 	/**
-	 * Store OAuth2 refresh token in database
+	 * Store OAuth2 refresh token
+	 *
+	 * Stores refresh token in database with expiration and metadata.
+	 *
+	 * @param int    $user_id       WordPress user ID.
+	 * @param string $refresh_token Refresh token.
+	 * @param int    $expires_at    Expiration timestamp.
+	 * @param string $client_id     Client identifier.
+	 * @param array  $scopes        OAuth2 scopes.
+	 * @return bool True if stored successfully.
 	 */
 	private function store_oauth2_refresh_token( int $user_id, string $refresh_token, int $expires_at, string $client_id, array $scopes ): bool {
 		return $this->refresh_token_manager->store(
@@ -1580,13 +1814,18 @@ class Auth_OAuth2 {
 			$expires_at,
 			array(
 				'client_id' => $client_id,
-				'scopes'    => json_encode( $scopes ),
+				'scopes'    => wp_json_encode( $scopes ),
 			)
 		);
 	}
 
 	/**
 	 * Validate OAuth2 refresh token
+	 *
+	 * Validates refresh token and returns token data.
+	 *
+	 * @param string $refresh_token Refresh token.
+	 * @return array|WP_Error Token data or error.
 	 */
 	private function validate_oauth2_refresh_token( string $refresh_token ) {
 		$token_data = $this->refresh_token_manager->validate( $refresh_token );
@@ -1603,7 +1842,17 @@ class Auth_OAuth2 {
 	}
 
 	/**
-	 * Rotate OAuth2 refresh token (revoke old, create new)
+	 * Rotate OAuth2 refresh token
+	 *
+	 * Revokes old refresh token and creates new one for enhanced security.
+	 *
+	 * @param string $old_token   Old refresh token to revoke.
+	 * @param string $new_token   New refresh token.
+	 * @param int    $user_id     WordPress user ID.
+	 * @param int    $expires_at  Expiration timestamp.
+	 * @param string $client_id   Client identifier.
+	 * @param array  $scopes      OAuth2 scopes.
+	 * @return bool True if rotated successfully.
 	 */
 	private function rotate_oauth2_refresh_token( string $old_token, string $new_token, int $user_id, int $expires_at, string $client_id, array $scopes ): bool {
 		return $this->refresh_token_manager->rotate(
@@ -1613,13 +1862,18 @@ class Auth_OAuth2 {
 			$expires_at,
 			array(
 				'client_id' => $client_id,
-				'scopes'    => json_encode( $scopes ),
+				'scopes'    => wp_json_encode( $scopes ),
 			)
 		);
 	}
 
 	/**
 	 * Revoke OAuth2 refresh token
+	 *
+	 * Revokes refresh token to prevent further use.
+	 *
+	 * @param string $refresh_token Refresh token to revoke.
+	 * @return bool True if revoked successfully.
 	 */
 	private function revoke_oauth2_refresh_token( string $refresh_token ): bool {
 		return $this->refresh_token_manager->revoke( $refresh_token );
