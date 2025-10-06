@@ -23,6 +23,12 @@ jobs:
         with:
           node-version: 20
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer:v2
+
       - name: Cache npm
         uses: actions/cache@v4
         with:
@@ -31,16 +37,22 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache/files
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
       - name: Install Node dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
       - name: Start wp-env
         run: npm run env:start
-
-      - name: Install Composer dependencies in wp-env
-        run: |
-          PLUGIN_DIR=$(basename "$PWD")
-          npm run env -- run tests-cli --env-cwd="wp-content/plugins/$PLUGIN_DIR" bash -lc 'composer install --no-interaction --prefer-dist'
 
       - name: Run full test suite via wp-env
         run: npm test
