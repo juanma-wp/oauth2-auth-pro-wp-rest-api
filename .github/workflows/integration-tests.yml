@@ -38,7 +38,9 @@ jobs:
         run: npm run env:start
 
       - name: Install Composer dependencies in wp-env
-        run: npm run composer:install
+        run: |
+          PLUGIN_DIR=$(basename "$PWD")
+          npm run env -- run tests-cli --env-cwd="wp-content/plugins/$PLUGIN_DIR" bash -lc 'composer install --no-interaction --prefer-dist'
 
       - name: Run full test suite via wp-env
         run: npm test
