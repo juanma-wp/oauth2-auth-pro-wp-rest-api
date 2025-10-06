@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<phpunit
+    bootstrap="tests/bootstrap-unit.php"
+    backupGlobals="false"
+    colors="true"
+    convertErrorsToExceptions="true"
+    convertWarningsToExceptions="true"
+    convertNoticesToExceptions="true"
+    convertDeprecationsToExceptions="true"
+>
+    <testsuites>
+        <testsuite name="unit">
+            <file>./tests/unit/BasicHelpersTest.php</file>
+        </testsuite>
+    </testsuites>
+</phpunit>
