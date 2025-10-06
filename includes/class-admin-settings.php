@@ -47,7 +47,7 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 	 * Get the settings page slug
 	 */
 	protected function getPageSlug(): string {
-		return 'wp-rest-auth-oauth2';
+		return 'oauth2-auth-pro-wp-rest-api';
 	}
 
 	/**
@@ -84,7 +84,7 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 			'WP REST Auth OAuth2 Settings',
 			'WP REST Auth OAuth2',
 			'manage_options',
-			'wp-rest-auth-oauth2',
+			'oauth2-auth-pro-wp-rest-api',
 			array( $this, 'admin_page' )
 		);
 	}
@@ -107,8 +107,8 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 		);
 
 		// Register General Settings and Cookie Settings using base class.
-		$this->registerGeneralSettings( 'wp-rest-auth-oauth2-general' );
-		$this->registerCookieSettings( 'wp-rest-auth-oauth2-cookies' );
+		$this->registerGeneralSettings( 'oauth2-auth-pro-wp-rest-api-general' );
+		$this->registerCookieSettings( 'oauth2-auth-pro-wp-rest-api-cookies' );
 	}
 
 	/**
@@ -120,12 +120,12 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 	 * @return void
 	 */
 	public function enqueue_admin_scripts( $hook ) {
-		if ( 'settings_page_wp-rest-auth-oauth2' !== $hook ) {
+		if ( 'settings_page_oauth2-auth-pro-wp-rest-api' !== $hook ) {
 			return;
 		}
 
 		wp_enqueue_script(
-			'wp-rest-auth-oauth2-admin',
+			'oauth2-auth-pro-wp-rest-api-admin',
 			plugin_dir_url( __DIR__ ) . 'assets/admin.js',
 			array( 'jquery' ),
 			'1.0.0',
@@ -133,7 +133,7 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 		);
 
 		wp_localize_script(
-			'wp-rest-auth-oauth2-admin',
+			'oauth2-auth-pro-wp-rest-api-admin',
 			'wpRestAuthOAuth2',
 			array(
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
@@ -158,10 +158,10 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 			<p class="description">OAuth2 authentication for WordPress REST API</p>
 
 			<nav class="nav-tab-wrapper">
-				<a href="?page=wp-rest-auth-oauth2&tab=oauth2" class="nav-tab <?php echo 'oauth2' === $active_tab ? 'nav-tab-active' : ''; ?>">OAuth2 Settings</a>
-				<a href="?page=wp-rest-auth-oauth2&tab=general" class="nav-tab <?php echo 'general' === $active_tab ? 'nav-tab-active' : ''; ?>">General Settings</a>
-				<a href="?page=wp-rest-auth-oauth2&tab=cookies" class="nav-tab <?php echo 'cookies' === $active_tab ? 'nav-tab-active' : ''; ?>">Cookie Settings</a>
-				<a href="?page=wp-rest-auth-oauth2&tab=help" class="nav-tab <?php echo 'help' === $active_tab ? 'nav-tab-active' : ''; ?>">Help & Documentation</a>
+				<a href="?page=oauth2-auth-pro-wp-rest-api&tab=oauth2" class="nav-tab <?php echo 'oauth2' === $active_tab ? 'nav-tab-active' : ''; ?>">OAuth2 Settings</a>
+				<a href="?page=oauth2-auth-pro-wp-rest-api&tab=general" class="nav-tab <?php echo 'general' === $active_tab ? 'nav-tab-active' : ''; ?>">General Settings</a>
+				<a href="?page=oauth2-auth-pro-wp-rest-api&tab=cookies" class="nav-tab <?php echo 'cookies' === $active_tab ? 'nav-tab-active' : ''; ?>">Cookie Settings</a>
+				<a href="?page=oauth2-auth-pro-wp-rest-api&tab=help" class="nav-tab <?php echo 'help' === $active_tab ? 'nav-tab-active' : ''; ?>">Help & Documentation</a>
 			</nav>
 
 			<?php if ( 'help' === $active_tab ) : ?>
@@ -174,10 +174,10 @@ class WP_REST_Auth_OAuth2_Admin_Settings extends BaseAdminSettings {
 					if ( 'oauth2' === $active_tab ) {
 						$this->render_oauth2_tab();
 					} elseif ( 'general' === $active_tab ) {
-						do_settings_sections( 'wp-rest-auth-oauth2-general' );
+						do_settings_sections( 'oauth2-auth-pro-wp-rest-api-general' );
 						submit_button();
 					} elseif ( 'cookies' === $active_tab ) {
-						do_settings_sections( 'wp-rest-auth-oauth2-cookies' );
+						do_settings_sections( 'oauth2-auth-pro-wp-rest-api-cookies' );
 						// No submit button - read-only display.
 					}
 					?>

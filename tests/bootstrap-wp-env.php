@@ -27,7 +27,7 @@ require_once $_tests_dir . '/includes/functions.php';
  */
 function _manually_load_oauth2_plugin() {
     // Load the plugin
-    require dirname( __DIR__ ) . '/wp-rest-auth-oauth2.php';
+    require dirname( __DIR__ ) . '/oauth2-auth-pro-wp-rest-api.php';
 }
 tests_add_filter( 'muplugins_loaded', '_manually_load_oauth2_plugin' );
 

@@ -1,5 +1,5 @@
 {
-  "name": "wp-rest-auth-oauth2",
+  "name": "oauth2-auth-pro-wp-rest-api",
   "version": "1.0.0",
   "description": "Secure OAuth2 authentication for headless WordPress, SPAs, and mobile apps",
   "private": true,
@@ -13,12 +13,12 @@
     "env:logs": "wp-env logs",
     "env:reset": "wp-env destroy && wp-env start",
     "env:update": "wp-env start --update",
-    "composer:install": "wp-env run tests-cli --env-cwd=wp-content/plugins/wp-rest-auth-oauth2 bash -lc 'composer install --no-interaction --prefer-dist'",
-    "composer:update": "wp-env run tests-cli --env-cwd=wp-content/plugins/wp-rest-auth-oauth2 bash -lc 'composer update --no-interaction --prefer-dist'",
-    "test:setup": "wp-env run tests-cli bash -c 'wp plugin activate wp-rest-auth-oauth2 2>/dev/null || true'",
+    "composer:install": "wp-env run tests-cli --env-cwd=wp-content/plugins/oauth2-auth-pro-wp-rest-api bash -lc 'composer install --no-interaction --prefer-dist'",
+    "composer:update": "wp-env run tests-cli --env-cwd=wp-content/plugins/oauth2-auth-pro-wp-rest-api bash -lc 'composer update --no-interaction --prefer-dist'",
+    "test:setup": "wp-env run tests-cli bash -c 'wp plugin activate oauth2-auth-pro-wp-rest-api 2>/dev/null || true'",
     "test": "npm run test:setup && npm run test-unit && npm run test-integration",
-    "test-unit": "npm run test:setup && wp-env run tests-cli --env-cwd=wp-content/plugins/wp-rest-auth-oauth2 vendor/bin/phpunit --testsuite=unit --testdox",
-    "test-integration": "npm run test:setup && wp-env run tests-cli --env-cwd=wp-content/plugins/wp-rest-auth-oauth2 vendor/bin/phpunit --testsuite integration --testdox"
+    "test-unit": "npm run test:setup && wp-env run tests-cli --env-cwd=wp-content/plugins/oauth2-auth-pro-wp-rest-api vendor/bin/phpunit --testsuite=unit --testdox",
+    "test-integration": "npm run test:setup && wp-env run tests-cli --env-cwd=wp-content/plugins/oauth2-auth-pro-wp-rest-api vendor/bin/phpunit --testsuite integration --testdox"
   },
   "repository": {
     "type": "git",

@@ -34,7 +34,7 @@ function _manually_load_oauth2_plugin() {
         define('WP_OAUTH2_SECRET', 'test-oauth2-secret-key-for-testing-only-never-use-in-production');
     }
 
-    require dirname( dirname( __FILE__ ) ) . '/wp-rest-auth-oauth2.php';
+    require dirname( dirname( __FILE__ ) ) . '/oauth2-auth-pro-wp-rest-api.php';
 }
 
 tests_add_filter( 'muplugins_loaded', '_manually_load_oauth2_plugin' );

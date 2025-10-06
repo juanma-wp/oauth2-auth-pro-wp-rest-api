@@ -46,7 +46,7 @@ jQuery(document).ready(function($) {
         $('.copy-to-clipboard').on('click', copyToClipboard);
 
         // Form validation
-        $('.wp-rest-auth-oauth2-form').on('submit', validateForm);
+        $('.oauth2-auth-pro-wp-rest-api-form').on('submit', validateForm);
 
         // Real-time validation
         $('#client-id').on('blur', validateClientId);
@@ -57,7 +57,7 @@ jQuery(document).ready(function($) {
      * Initialize tooltips
      */
     function initTooltips() {
-        $('.wp-rest-auth-oauth2-tooltip').tooltip({
+        $('.oauth2-auth-pro-wp-rest-api-tooltip').tooltip({
             position: { my: 'left+10 center', at: 'right center' },
             tooltipClass: 'wp-rest-auth-oauth2-tooltip-content'
         });

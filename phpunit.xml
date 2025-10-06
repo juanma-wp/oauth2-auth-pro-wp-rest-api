@@ -19,7 +19,7 @@
     <filter>
         <whitelist processUncoveredFilesFromWhitelist="true">
             <directory suffix=".php">./includes/</directory>
-            <file>./wp-rest-auth-oauth2.php</file>
+            <file>./oauth2-auth-pro-wp-rest-api.php</file>
         </whitelist>
     </filter>
 </phpunit>

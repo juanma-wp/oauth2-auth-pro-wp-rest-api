@@ -31,6 +31,6 @@
     }
   },
   "mappings": {
-    "wp-content/plugins/wp-rest-auth-oauth2/vendor": "./vendor"
+    "wp-content/plugins/oauth2-auth-pro-wp-rest-api/vendor": "./vendor"
   }
 }
