@@ -22,6 +22,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -40,11 +45,20 @@ jobs:
           key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
 
-      - name: Install dependencies
+      - name: Install Composer dependencies
         run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Start wp-env
+        run: npm run env:start
+
+      - name: Install Composer dependencies in wp-env
+        run: npm run composer:install
 
       - name: Check PHP syntax
         run: find . -name "*.php" -not -path "./vendor/*" -not -path "./node_modules/*" -exec php -l {} \;
 
-      - name: Run unit tests (PHP compatibility)
-        run: vendor/bin/phpunit --testsuite=unit --testdox
+      - name: Run unit tests
+        run: npm run test-unit
