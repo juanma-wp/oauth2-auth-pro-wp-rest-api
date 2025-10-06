@@ -317,7 +317,7 @@ class Auth_OAuth2 {
 
 			$login_url = wp_login_url( add_query_arg( $query_args, home_url() ) );
 
-			wp_redirect( $login_url );
+			wp_safe_redirect( $login_url );
 			exit;
 		}
 
@@ -398,6 +398,7 @@ class Auth_OAuth2 {
 			case 'moderate_comments':
 				return user_can( $user, 'moderate_comments' );
 			case 'view_stats':
+				// phpcs:ignore WordPress.WP.Capabilities.Unknown -- view_query_monitor is a custom capability.
 				return user_can( $user, 'view_query_monitor' ); // Or custom capability.
 			default:
 				return false;
@@ -996,7 +997,7 @@ class Auth_OAuth2 {
 
 		if ( ! is_user_logged_in() ) {
 			$login_url = wp_login_url( add_query_arg( $request->get_query_params(), rest_url( 'oauth2/v1/authorize' ) ) );
-			wp_redirect( $login_url );
+			wp_safe_redirect( $login_url );
 			exit;
 		}
 
@@ -1026,6 +1027,7 @@ class Auth_OAuth2 {
 			$redirect_uri
 		);
 
+		// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- OAuth2 requires redirecting to client redirect_uri.
 		wp_redirect( $location );
 		exit;
 	}
