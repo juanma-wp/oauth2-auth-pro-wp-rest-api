@@ -100,19 +100,6 @@ class OAuth2FlowIntegrationTest extends WP_UnitTestCase
         $this->assertArrayHasKey('write', $scopes);
     }
 
-    public function testAuthorizeEndpointWithInvalidClient(): void
-    {
-        // Skip - authorize endpoint redirects which causes header errors in test environment
-        $this->markTestSkipped('Authorize endpoint redirect causes header errors in PHPUnit');
-    }
-
-    public function testAuthorizeEndpointWithValidClient(): void
-    {
-        // Skip - authorize endpoint redirects which causes header errors in test environment
-        $this->markTestSkipped('Authorize endpoint redirect causes header errors in PHPUnit');
-        $this->assertTrue(in_array($response->get_status(), [200, 302]));
-    }
-
     public function testTokenEndpointWithInvalidGrant(): void
     {
         $request = new WP_REST_Request('POST', '/oauth2/v1/token');
@@ -268,22 +255,6 @@ class OAuth2FlowIntegrationTest extends WP_UnitTestCase
         $this->assertFalse($invalid_uri);
     }
 
-    public function testStateParameterPreservation(): void
-    {
-        wp_set_current_user($this->test_user_id);
-
-        $state = 'test-state-' . time();
-
-        $request = new WP_REST_Request('GET', '/oauth2/v1/authorize');
-        $request->set_param('client_id', 'test-client');
-        $request->set_param('redirect_uri', 'http://localhost:3000/callback');
-        $request->set_param('response_type', 'code');
-        $request->set_param('state', $state);
-
-        // Skip - authorize endpoint redirects which causes header errors in test environment
-        $this->markTestSkipped('State parameter test requires redirect handling');
-    }
-
     public function testCORSHeadersInOAuth2Endpoints(): void
     {
         $_SERVER['HTTP_ORIGIN'] = 'https://example.com';
@@ -296,25 +267,6 @@ class OAuth2FlowIntegrationTest extends WP_UnitTestCase
 
         // Clean up
         unset($_SERVER['HTTP_ORIGIN']);
-    }
-
-    public function testMultipleClientsSupport(): void
-    {
-        // Skip - authorize endpoint redirects which causes header errors in test environment
-        $this->markTestSkipped('Multiple clients test requires redirect handling');
-        $client1_request->set_param('response_type', 'code');
-
-        $client2_request = new WP_REST_Request('GET', '/oauth2/v1/authorize');
-        $client2_request->set_param('client_id', 'another-client');
-        $client2_request->set_param('redirect_uri', 'https://another-app.com/callback');
-        $client2_request->set_param('response_type', 'code');
-
-        $response1 = $this->server->dispatch($client1_request);
-        $response2 = $this->server->dispatch($client2_request);
-
-        // First client should work (configured), second should fail (not configured)
-        $this->assertTrue(in_array($response1->get_status(), [200, 302, 401]));
-        $this->assertEquals(400, $response2->get_status()); // Invalid client
     }
 
     public function testTokenIntrospection(): void
